@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('trainer_redeem_requests', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('trainer_profile_id')->constrained('trainer_profiles')->cascadeOnDelete();
+            $table->unsignedInteger('amount');
+            $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->string('payout_bank', 100)->nullable();
+            $table->string('payout_account_number', 50)->nullable();
+            $table->text('description')->nullable();
+            $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('approved_at')->nullable();
+            $table->text('rejected_reason')->nullable();
+            $table->timestamp('rejected_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('trainer_redeem_requests');
+    }
+};
+
