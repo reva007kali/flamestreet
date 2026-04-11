@@ -25,6 +25,13 @@ class OrderController extends Controller
         return response()->json($orders);
     }
 
+    public function show(int $id)
+    {
+        $order = Order::query()->with(['items', 'gym'])->findOrFail($id);
+
+        return response()->json(['order' => $order]);
+    }
+
     public function updateStatus(Request $request, int $id)
     {
         $order = Order::query()->findOrFail($id);
@@ -72,7 +79,7 @@ class OrderController extends Controller
         $order->save();
 
         $this->notificationService->notifyCourierNewDelivery($courier->id, $order->id, $order->order_number);
-        $this->notificationService->notifyOrderQueue($this->orderService->queueCounts(), 'assigned', $order->order_number, $order->status, $order->payment_status);
+        $this->notificationService->notifyOrderQueue($this->orderService->queueCounts(), 'assigned', $order->order_number, $order->status, $order->payment_status, $order->id);
 
         return response()->json(['order' => $order->refresh()->load(['items', 'gym'])]);
     }

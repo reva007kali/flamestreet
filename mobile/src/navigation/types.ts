@@ -1,0 +1,45 @@
+export type RootStackParamList = {
+  Auth: undefined;
+  App: undefined;
+  Onboarding: undefined;
+  ProductDetail: { slug: string };
+  OrderDetail: { orderNumber: string; orderId?: number };
+  Checkout: undefined;
+  Profile: undefined;
+  Notifications: undefined;
+  ArticleDetail: { slug: string };
+  PointsHistory: undefined;
+  TrainerMembers: undefined;
+  TrainerWithdraw: undefined;
+  CashierOrderDetail: { id: number };
+  AdminOrders: undefined;
+  AdminOrderDetail: { id: number };
+  AdminRedeems: undefined;
+  AdminUsers: undefined;
+  AdminTrainers: undefined;
+  AdminProducts: undefined;
+  AdminProductCategories: undefined;
+  AdminGyms: undefined;
+  AdminPromoBanners: undefined;
+  AdminArticles: undefined;
+  AdminPaymentMethods: undefined;
+  AdminPointSettings: undefined;
+};
+
+export type AuthStackParamList = {
+  Login: undefined;
+  Register:
+    | { allowTrainer?: boolean; presetRole?: "member" | "trainer" }
+    | undefined;
+};
+
+export type AppTabParamList = {
+  Dashboard: undefined;
+  Admin: undefined;
+  Home: undefined;
+  Products: undefined;
+  Cart: undefined;
+  Orders: undefined;
+  Articles: undefined;
+  Queue: { preset?: "all" | "unpaid" } | undefined;
+};

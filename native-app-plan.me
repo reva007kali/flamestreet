@@ -1,0 +1,160 @@
+# Flamestreet React Native App Plan
+
+## Goal
+Build a React Native mobile app that consumes the existing Flamestreet backend API (Laravel) and matches the current web app user flows (member/trainer/cashier/admin as needed), with a focus on:
+- Browse meals/products
+- Cart + checkout
+- Orders list + order detail + payment status updates (DOKU redirect + webhook-driven status)
+- Authentication + profile
+
+## Recommended Approach
+### Use Expo (Managed) + EAS
+This is the fastest, most maintainable path for a small team and fits this project well.
+- Expo for dev speed + OTA updates
+- EAS Build for Android/iOS builds and store releases
+- Use a custom dev client only if/when we need native modules not supported by Expo managed
+
+## Scope (MVP)
+### Member
+1) Auth
+   - Login, logout
+   - Persist session securely
+2) Catalog
+   - Home
+   - Meals list + meal detail
+3) Cart + Checkout
+   - Add/remove items
+   - Place order (calls existing backend `/orders`)
+   - If payment method is DOKU (QRIS/VA), create payment session and open the returned payment URL
+4) Orders
+   - Orders list
+   - Order detail
+   - Payment status polling until paid (and refresh on app resume)
+
+### Optional (MVP+)
+- Trainer view (if required): orders assigned to trainer
+- Simple notifications: local in-app banner; push notifications later
+
+## Key Technical Decisions
+### Navigation
+- React Navigation (Stack + Tabs)
+- Deep linking enabled for returning from DOKU payment pages into the app
+
+### Data Fetching
+- @tanstack/react-query (already used on web)
+- Axios for HTTP with a shared `api` instance (already used on web)
+
+### State Management
+- Zustand (already used on web) for:
+  - auth state (token/user/roles)
+  - cart state
+
+### Styling
+Two viable options:
+1) NativeWind (Tailwind for React Native) for parity with web Tailwind mental model
+2) StyleSheet-based UI + component kit
+
+Recommendation: NativeWind to match the current Tailwind approach in `frontend/`.
+
+### Auth Strategy
+We will align to whatever the backend currently supports for mobile:
+- If backend supports token auth (recommended): store token in Expo SecureStore and send `Authorization: Bearer ...`.
+- If backend uses Sanctum SPA cookies: mobile becomes harder (cookie + CSRF). For mobile, token-based auth is strongly preferred.
+
+Action item: confirm backend auth method for mobile (token endpoint already exists for DOKU; we need user auth endpoint).
+
+### Payments (DOKU Checkout)
+Current backend flow:
+- Create order
+- If payment method is `doku-*`, call `/api/orders/{id}/doku/checkout` to create payment session and receive payment URL
+
+Mobile UX:
+- Open payment URL in:
+  - WebBrowser (external browser) OR
+  - In-app WebView
+
+Recommendation:
+- Start with external browser (Expo WebBrowser) for simplest reliability.
+- Add deep link return (optional).
+- Always poll `/api/orders/{id}/doku/checkout/status` until paid.
+
+### Webhooks
+Webhooks remain server-to-server only.
+- Mobile does not receive webhooks directly.
+- Mobile reads updated order status from backend.
+
+## Proposed Project Structure
+Create a new folder at repo root:
+- `mobile/` (React Native app)
+
+Suggested structure:
+- `mobile/src/app/` screens
+- `mobile/src/navigation/`
+- `mobile/src/lib/api.ts` axios instance
+- `mobile/src/lib/auth.ts` token persistence
+- `mobile/src/store/` zustand stores
+- `mobile/src/features/` feature modules (orders, cart, meals)
+
+## Environment & Configuration
+### Required env values
+- `EXPO_PUBLIC_API_BASE_URL` (points to Laravel backend public URL)
+- Optional: `EXPO_PUBLIC_WEBSITE_URL` (if we need to open web pages)
+
+### Build profiles (EAS)
+- development (internal testing)
+- preview (QA)
+- production (store)
+
+## Step-by-Step Delivery Plan
+### Phase 1 — Foundations
+1) Create `mobile/` Expo app (TypeScript)
+2) Add dependencies:
+   - react-navigation (stack + bottom tabs)
+   - react-query + axios
+   - zustand
+   - expo-secure-store for tokens
+   - (optional) nativewind for styling
+3) Implement app shell:
+   - Auth stack vs App tabs
+   - Global query client
+   - Global API client
+
+### Phase 2 — Auth
+1) Implement login screen and token persistence
+2) Add `api` interceptor for auth header
+3) Add `/me` fetch for user profile and role routing
+
+### Phase 3 — Catalog + Cart
+1) Meals list + detail screens
+2) Cart store + UI
+3) Checkout screen (select payment method, address, etc. aligned to backend)
+
+### Phase 4 — Orders + DOKU Payment
+1) Place order: `POST /orders`
+2) If `doku-*`:
+   - `POST /orders/{id}/doku/checkout`
+   - open `payment_url`
+3) Order detail:
+   - poll `/orders/{id}/doku/checkout/status` while unpaid
+   - show “Pay now” button if unpaid and `payment_url` exists
+
+### Phase 5 — Hardening
+1) Error handling:
+   - network errors
+   - expired auth
+2) Performance:
+   - image caching for meals
+3) QA checks:
+   - Android + iOS testing
+4) EAS build setup
+
+## Compliance Notes (DOKU)
+- Webhook signature verification stays on backend (already implemented).
+- Mobile should never store or handle DOKU secret keys.
+
+## Acceptance Checklist
+- Member can login, browse meals, add to cart, checkout.
+- DOKU payment methods open payment URL and orders become paid after DOKU webhook updates backend.
+- Order detail updates to paid via polling (no manual refresh needed).
+- No secrets in mobile app bundle (only public base URLs).
+

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "792974816063",
+    "project_id": "mobile-bc775",
+    "storage_bucket": "mobile-bc775.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:792974816063:android:70acb2dc9c85f4f07a998a",
+        "android_client_info": {
+          "package_name": "com.flamestreet.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFUgl9CNgzmELRdUtuHDLpwG81JTJnu8M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

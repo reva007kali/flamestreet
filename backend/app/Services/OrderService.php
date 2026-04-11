@@ -179,7 +179,7 @@ class OrderService
 
             $order->save();
 
-            $this->notificationService->notifyOrderQueue($this->queueCounts(), 'created', $order->order_number, $order->status, $order->payment_status);
+            $this->notificationService->notifyOrderQueue($this->queueCounts(), 'created', $order->order_number, $order->status, $order->payment_status, $order->id);
 
             return $order->load('items');
         });
@@ -212,20 +212,20 @@ class OrderService
             $order->save();
 
             $this->notificationService->notifyOrderStatus($order->id, $order->status, $order->order_number, $order->payment_status);
-            $this->notificationService->notifyOrderQueue($this->queueCounts(), 'payment', $order->order_number, $order->status, $order->payment_status);
+            $this->notificationService->notifyOrderQueue($this->queueCounts(), 'payment', $order->order_number, $order->status, $order->payment_status, $order->id);
             if ($memberPoints > 0) {
                 $this->notificationService->notifyUser(
                     (int) $order->member_id,
                     'reward_in',
                     'Reward masuk',
-                    ['order_number' => $order->order_number, 'points' => $memberPoints],
+                    ['order_id' => $order->id, 'order_number' => $order->order_number, 'points' => $memberPoints],
                 );
             }
             $this->notificationService->notifyUser(
                 (int) $order->member_id,
                 'order_status',
                 'Status pesanan diperbarui',
-                ['order_number' => $order->order_number, 'status' => $order->status, 'payment_status' => $order->payment_status],
+                ['order_id' => $order->id, 'order_number' => $order->order_number, 'status' => $order->status, 'payment_status' => $order->payment_status],
             );
 
             if (! $order->trainer_id) {
@@ -271,12 +271,12 @@ class OrderService
 
         $order->refresh();
         $this->notificationService->notifyOrderStatus($order->id, $order->status, $order->order_number, $order->payment_status);
-        $this->notificationService->notifyOrderQueue($this->queueCounts(), 'status', $order->order_number, $order->status, $order->payment_status);
+        $this->notificationService->notifyOrderQueue($this->queueCounts(), 'status', $order->order_number, $order->status, $order->payment_status, $order->id);
         $this->notificationService->notifyUser(
             (int) $order->member_id,
             'order_status',
             'Status pesanan diperbarui',
-            ['order_number' => $order->order_number, 'status' => $order->status, 'payment_status' => $order->payment_status],
+            ['order_id' => $order->id, 'order_number' => $order->order_number, 'status' => $order->status, 'payment_status' => $order->payment_status],
         );
     }
 

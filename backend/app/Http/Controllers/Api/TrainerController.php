@@ -69,29 +69,65 @@ class TrainerController extends Controller
     {
         $trainerProfile = TrainerProfile::query()->where('user_id', $request->user()->id)->firstOrFail();
 
-        $members = MemberProfile::query()
+        $data = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'min_purchase' => ['nullable', 'numeric', 'min:0'],
+            'sort' => ['nullable', \Illuminate\Validation\Rule::in(['newest', 'purchase_desc', 'purchase_asc'])],
+        ]);
+
+        $q = MemberProfile::query()
             ->with('user')
-            ->where('referred_by', $trainerProfile->id)
-            ->orderByDesc('id')
-            ->paginate(20);
+            ->where('referred_by', $trainerProfile->id);
+
+        if (! empty($data['q'])) {
+            $term = '%'.str_replace('%', '\\%', $data['q']).'%';
+            $q->whereHas('user', function ($qq) use ($term) {
+                $qq->where('full_name', 'like', $term)->orWhere('username', 'like', $term);
+            });
+        }
+
+        $members = $q->orderByDesc('id')->paginate(20);
 
         $memberIds = collect($members->items())->map(fn (MemberProfile $mp) => $mp->user_id)->all();
-        $latestOrders = Order::query()
-            ->select(['id', 'order_number', 'member_id', 'status', 'payment_status', 'total_amount', 'created_at'])
+        $orderAgg = \App\Models\Order::query()
             ->whereIn('member_id', $memberIds)
-            ->orderByDesc('id')
-            ->get()
+            ->where('payment_status', 'paid')
             ->groupBy('member_id')
-            ->map(fn ($rows) => $rows->first());
+            ->selectRaw('member_id, COALESCE(SUM(total_amount), 0) as total_purchase')
+            ->pluck('total_purchase', 'member_id')
+            ->map(fn ($v) => (float) $v);
 
-        $data = $members->through(function (MemberProfile $mp) use ($latestOrders) {
+        $itemAgg = \App\Models\OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->whereIn('orders.member_id', $memberIds)
+            ->where('orders.payment_status', 'paid')
+            ->groupBy('orders.member_id')
+            ->selectRaw('orders.member_id as member_id, COALESCE(SUM(order_items.quantity), 0) as items_count')
+            ->pluck('items_count', 'member_id')
+            ->map(fn ($v) => (int) $v);
+
+        $rows = $members->through(function (MemberProfile $mp) use ($orderAgg, $itemAgg) {
             return [
-                'member' => $mp->user->only(['id', 'full_name', 'username', 'email', 'phone_number']),
-                'latest_order' => $latestOrders->get($mp->user_id),
+                'member' => $mp->user->only(['id', 'full_name', 'username', 'email', 'phone_number', 'avatar']),
+                'total_purchase' => (float) ($orderAgg->get($mp->user_id) ?? 0),
+                'items_count' => (int) ($itemAgg->get($mp->user_id) ?? 0),
             ];
         });
 
-        return response()->json($data);
+        if (! empty($data['min_purchase'])) {
+            $min = (float) $data['min_purchase'];
+            $filtered = $rows->getCollection()->filter(fn ($r) => (float) ($r['total_purchase'] ?? 0) >= $min)->values();
+            $rows->setCollection($filtered);
+        }
+
+        $sort = $data['sort'] ?? null;
+        if ($sort === 'purchase_desc') {
+            $rows->setCollection($rows->getCollection()->sortByDesc('total_purchase')->values());
+        } elseif ($sort === 'purchase_asc') {
+            $rows->setCollection($rows->getCollection()->sortBy('total_purchase')->values());
+        }
+
+        return response()->json($rows);
     }
 
     public function points(Request $request)

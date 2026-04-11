@@ -57,4 +57,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class, 'courier_id');
     }
+
+    public function pushTokens()
+    {
+        return $this->hasMany(PushToken::class);
+    }
 }

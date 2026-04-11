@@ -25,7 +25,7 @@ class OrderController extends Controller
             'payment_status' => ['nullable', 'string'],
         ]);
 
-        $q = Order::query()->with('items')->orderByDesc('id');
+        $q = Order::query()->with(['items', 'gym', 'member'])->orderByDesc('id');
 
         if (! empty($data['status'])) {
             if ($data['status'] === 'queue') {
@@ -49,7 +49,7 @@ class OrderController extends Controller
 
     public function show(int $id)
     {
-        $order = Order::query()->with(['items', 'gym'])->findOrFail($id);
+        $order = Order::query()->with(['items', 'gym', 'member'])->findOrFail($id);
 
         return response()->json(['order' => $order]);
     }
@@ -101,7 +101,7 @@ class OrderController extends Controller
         $order->save();
 
         $this->notificationService->notifyCourierNewDelivery($courier->id, $order->id, $order->order_number);
-        $this->notificationService->notifyOrderQueue($this->orderService->queueCounts(), 'assigned', $order->order_number, $order->status, $order->payment_status);
+        $this->notificationService->notifyOrderQueue($this->orderService->queueCounts(), 'assigned', $order->order_number, $order->status, $order->payment_status, $order->id);
 
         return response()->json(['order' => $order->refresh()->load(['items', 'gym'])]);
     }

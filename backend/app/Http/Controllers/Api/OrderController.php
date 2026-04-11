@@ -47,9 +47,25 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
+        $data = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+        ]);
+
+        $from = isset($data['from']) ? \Illuminate\Support\Carbon::parse($data['from'])->startOfDay() : null;
+        $to = isset($data['to']) ? \Illuminate\Support\Carbon::parse($data['to'])->endOfDay() : null;
+
         $orders = Order::query()
             ->where('member_id', $request->user()->id)
             ->with(['items'])
+            ->when($from || $to, function ($q) use ($from, $to) {
+                $a = $from ?? \Illuminate\Support\Carbon::create(1970, 1, 1)->startOfDay();
+                $b = $to ?? \Illuminate\Support\Carbon::now()->endOfDay();
+                if ($b->lessThan($a)) {
+                    [$a, $b] = [$b->copy()->startOfDay(), $a->copy()->endOfDay()];
+                }
+                $q->whereBetween('created_at', [$a, $b]);
+            })
             ->orderByDesc('id')
             ->paginate(20);
 

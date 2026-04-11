@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\ExpoPushService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -10,6 +11,10 @@ use Illuminate\Support\Str;
 
 class MeController extends Controller
 {
+    public function __construct(protected ExpoPushService $expoPush)
+    {
+    }
+
     public function show(Request $request)
     {
         $user = $request->user()->load(['trainerProfile', 'memberProfile']);
@@ -74,5 +79,21 @@ class MeController extends Controller
         $user->save();
 
         return $this->show($request);
+    }
+
+    public function updatePushToken(Request $request)
+    {
+        $data = $request->validate([
+            'expo_push_token' => ['required', 'string', 'max:200'],
+            'platform' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $this->expoPush->upsertToken(
+            (int) $request->user()->id,
+            (string) $data['expo_push_token'],
+            isset($data['platform']) ? (string) $data['platform'] : null,
+        );
+
+        return response()->json(['ok' => true]);
     }
 }

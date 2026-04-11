@@ -18,6 +18,7 @@ class OrderQueueUpdated implements ShouldBroadcastNow
         public ?string $order_number = null,
         public ?string $status = null,
         public ?string $payment_status = null,
+        public ?int $order_id = null,
     ) {
     }
 

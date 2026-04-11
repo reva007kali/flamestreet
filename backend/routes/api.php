@@ -43,7 +43,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/avatar', [MeController::class, 'updateAvatar']);
     Route::put('/me/avatar', [MeController::class, 'updateAvatar']);
     Route::delete('/me/avatar', [MeController::class, 'deleteAvatar']);
+    Route::put('/me/push-token', [MeController::class, 'updatePushToken']);
     Route::get('/member/points', [MemberPointController::class, 'show'])->middleware('role:member');
+    Route::get('/member/points/history', [MemberPointController::class, 'history'])->middleware('role:member');
 
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{slug}', [ProductController::class, 'show']);
@@ -97,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/users/{id}', [AdminUserController::class, 'update']);
         Route::delete('/users/{id}', [AdminUserController::class, 'destroy']);
         Route::get('/orders', [AdminOrderController::class, 'index']);
+        Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
         Route::put('/orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
         Route::put('/orders/{id}/assign-courier', [AdminOrderController::class, 'assignCourier']);
         Route::get('/promo-banners', [AdminPromoBannerController::class, 'index']);
