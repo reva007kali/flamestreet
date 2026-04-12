@@ -181,7 +181,21 @@ class OrderService
 
             $this->notificationService->notifyOrderQueue($this->queueCounts(), 'created', $order->order_number, $order->status, $order->payment_status, $order->id);
 
-            return $order->load('items');
+            $order->load('items');
+            $this->notificationService->notifyUser(
+                (int) $order->member_id,
+                'order_created',
+                'Flame Meals',
+                [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                    'payment_status' => $order->payment_status,
+                    'body' => 'Order Flame Meals berhasil.',
+                ],
+            );
+
+            return $order;
         });
     }
 
@@ -270,14 +284,70 @@ class OrderService
         });
 
         $order->refresh();
+        $order->loadMissing('items');
         $this->notificationService->notifyOrderStatus($order->id, $order->status, $order->order_number, $order->payment_status);
         $this->notificationService->notifyOrderQueue($this->queueCounts(), 'status', $order->order_number, $order->status, $order->payment_status, $order->id);
+        $body = $this->buildMemberOrderStatusBody($order);
         $this->notificationService->notifyUser(
             (int) $order->member_id,
             'order_status',
-            'Status pesanan diperbarui',
-            ['order_id' => $order->id, 'order_number' => $order->order_number, 'status' => $order->status, 'payment_status' => $order->payment_status],
+            'Flame Meals',
+            [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'status' => $order->status,
+                'payment_status' => $order->payment_status,
+                'body' => $body ?? 'Status pesanan diperbarui',
+            ],
         );
+    }
+
+    protected function buildMemberOrderStatusBody(Order $order): ?string
+    {
+        $status = (string) ($order->status ?? '');
+
+        if ($status === 'confirmed') {
+            $items = $this->formatOrderItemsForNotification($order);
+            return $items ? "Orderan {$items} sedang di masak." : 'Orderan kamu sedang di masak.';
+        }
+        if ($status === 'delivering') {
+            return 'Orderan kamu sedang dalam perjalanan';
+        }
+        if ($status === 'delivered') {
+            return 'Flame Meals sudah diterima, selamat menikmati!';
+        }
+
+        return null;
+    }
+
+    protected function formatOrderItemsForNotification(Order $order): ?string
+    {
+        $items = $order->relationLoaded('items') ? $order->items : $order->items()->get();
+        if (! $items || $items->isEmpty()) {
+            return null;
+        }
+
+        $max = 3;
+        $parts = [];
+        foreach ($items->take($max) as $it) {
+            $name = (string) ($it->product_name ?? '');
+            if ($name === '') {
+                continue;
+            }
+            $qty = (int) ($it->quantity ?? 1);
+            $parts[] = $qty > 1 ? "{$name} x{$qty}" : $name;
+        }
+
+        if (! count($parts)) {
+            return null;
+        }
+
+        $more = max(0, $items->count() - count($parts));
+        $text = implode(', ', $parts);
+        if ($more > 0) {
+            $text .= " dan {$more} lainnya";
+        }
+        return $text;
     }
 
     public function reverseRewardsIfNeeded(Order $order): void

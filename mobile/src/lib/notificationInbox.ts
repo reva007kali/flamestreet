@@ -12,6 +12,39 @@ export type InboxItem = {
 
 const KEY = "flamestreet_notifications_inbox";
 const MAX = 60;
+const MAX_STORE_CHARS = 1900;
+const MAX_TITLE_CHARS = 80;
+const MAX_BODY_CHARS = 200;
+
+function clampText(v: any, max: number): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v);
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1) + "…";
+}
+
+function sanitizeItem(i: InboxItem): InboxItem {
+  return {
+    ...i,
+    title: clampText(i.title, MAX_TITLE_CHARS) ?? "Notification",
+    body: clampText(i.body, MAX_BODY_CHARS),
+    data: i.data ?? null,
+  };
+}
+
+function shrinkForStorage(items: InboxItem[]): InboxItem[] {
+  let next = items.map(sanitizeItem).slice(0, MAX);
+  let raw = JSON.stringify(next);
+  if (raw.length <= MAX_STORE_CHARS) return next;
+
+  next = next.map((i) => ({ ...i, data: null }));
+  raw = JSON.stringify(next);
+  while (next.length > 0 && raw.length > MAX_STORE_CHARS) {
+    next = next.slice(0, -1);
+    raw = JSON.stringify(next);
+  }
+  return next;
+}
 
 export async function loadInbox(): Promise<InboxItem[]> {
   try {
@@ -26,7 +59,8 @@ export async function loadInbox(): Promise<InboxItem[]> {
 
 export async function saveInbox(items: InboxItem[]) {
   try {
-    await SecureStore.setItemAsync(KEY, JSON.stringify(items.slice(0, MAX)));
+    const safe = shrinkForStorage(items);
+    await SecureStore.setItemAsync(KEY, JSON.stringify(safe));
   } catch {}
 }
 
@@ -51,4 +85,3 @@ export async function clearInbox() {
     await SecureStore.deleteItemAsync(KEY);
   } catch {}
 }
-

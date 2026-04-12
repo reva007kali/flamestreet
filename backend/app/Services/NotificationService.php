@@ -21,7 +21,9 @@ class NotificationService
         try {
             UserNotification::dispatch($userId, $type, $title, $data);
             $body = null;
-            if (isset($data['order_number'])) {
+            if (isset($data['body']) && is_string($data['body']) && trim($data['body']) !== '') {
+                $body = (string) $data['body'];
+            } elseif (isset($data['order_number'])) {
                 $body = '#'.(string) $data['order_number'];
             } elseif (isset($data['points'])) {
                 $body = (string) $data['points'].' points';
