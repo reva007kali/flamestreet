@@ -9,9 +9,11 @@ import { usePullToRefresh } from "../lib/usePullToRefresh";
 import Card from "../ui/Card";
 import { useAuthStore } from "../store/authStore";
 
+const EMPTY_ROLES: readonly string[] = [];
+
 export default function NotificationsScreen() {
   const navigation = useNavigation<any>();
-  const roles = useAuthStore((s) => s.user?.roles ?? []);
+  const roles = useAuthStore((s) => s.user?.roles ?? EMPTY_ROLES);
   const { refreshing, onRefresh } = usePullToRefresh();
   const [items, setItems] = useState<InboxItem[]>([]);
 

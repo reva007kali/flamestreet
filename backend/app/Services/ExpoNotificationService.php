@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class ExpoPushService
+class ExpoNotificationService
 {
     public function upsertToken(int $userId, string $token, ?string $platform = null): void
     {

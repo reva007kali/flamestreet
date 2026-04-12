@@ -8,12 +8,37 @@ import { createEcho } from "../lib/realtime";
 import { useOrderQueueStore } from "../store/orderQueueStore";
 
 const EMPTY_ROLES: readonly string[] = [];
+const ANDROID_DEFAULT_CHANNEL_ID = "default";
+
+async function ensureAndroidDefaultChannel() {
+  if (Platform.OS !== "android") return;
+  await Notifications.setNotificationChannelAsync(ANDROID_DEFAULT_CHANNEL_ID, {
+    name: "Default",
+    importance: Notifications.AndroidImportance.MAX,
+    sound: "default",
+    vibrationPattern: [0, 250, 250, 250],
+    enableVibrate: true,
+    showBadge: true,
+  });
+  const current =
+    await Notifications.getNotificationChannelAsync(ANDROID_DEFAULT_CHANNEL_ID);
+  console.warn(
+    "push: android channel ready",
+    current?.id,
+    current?.importance,
+    current?.sound,
+  );
+}
+
+ensureAndroidDefaultChannel().catch((e) =>
+  console.warn("push: failed to set android channel", e?.message ?? e),
+);
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldPlaySound: false,
-    shouldSetBadge: false,
     shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
     shouldShowBanner: true,
     shouldShowList: true,
   }),
@@ -30,10 +55,22 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
   const responseSub = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
+    async function ensureAndroidChannel() {
+      try {
+        await ensureAndroidDefaultChannel();
+      } catch (e: any) {
+        console.warn("push: failed to set android channel", e?.message ?? e);
+      }
+    }
+    ensureAndroidChannel();
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     async function initPush() {
       if (!token) return;
       if ((Constants as any).executionEnvironment === "storeClient") return;
+      await ensureAndroidDefaultChannel();
       const projectId =
         (Constants.easConfig as any)?.projectId ??
         (Constants.expoConfig as any)?.extra?.eas?.projectId ??
@@ -56,13 +93,6 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
       if (!granted) {
         console.warn("push: permission not granted");
         return;
-      }
-
-      if (Platform.OS === "android") {
-        await Notifications.setNotificationChannelAsync("default", {
-          name: "default",
-          importance: Notifications.AndroidImportance.DEFAULT,
-        });
       }
 
       const expoPushToken = (
@@ -122,6 +152,24 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
         });
       },
     );
+
+    Notifications.getLastNotificationResponseAsync()
+      .then(async (r) => {
+        if (!r) return;
+        const content = r.notification.request.content;
+        const id = `${r.notification.request.identifier}`;
+        await addToInbox({
+          id,
+          type: String(content.data?.type ?? "push"),
+          title: String(content.title ?? "Notification"),
+          body: (content.body as string) ?? null,
+          data: (content.data as any) ?? null,
+          read: true,
+        });
+      })
+      .catch((e) =>
+        console.warn("push: failed to read last notification response", e?.message ?? e),
+      );
 
     return () => {
       if (receivedSub.current) receivedSub.current.remove();

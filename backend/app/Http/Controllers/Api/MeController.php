@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\ExpoPushService;
+use App\Services\ExpoNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 
 class MeController extends Controller
 {
-    public function __construct(protected ExpoPushService $expoPush)
+    public function __construct(protected ExpoNotificationService $expoPush)
     {
     }
 

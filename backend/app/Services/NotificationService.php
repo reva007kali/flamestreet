@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
-    public function __construct(protected ExpoPushService $expoPush)
+    public function __construct(protected ExpoNotificationService $expoPush)
     {
     }
 
