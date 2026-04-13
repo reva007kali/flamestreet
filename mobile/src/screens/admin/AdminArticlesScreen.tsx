@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { FlatList, RefreshControl, Text, View } from "react-native";
+import { RefreshControl, Text, View } from "react-native";
 import { api } from "../../lib/api";
+import AppFlatList from "../../ui/AppFlatList";
 import Screen from "../../ui/Screen";
 import Card from "../../ui/Card";
 import { theme } from "../../ui/theme";
@@ -30,7 +31,7 @@ export default function AdminArticlesScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={rows}
         keyExtractor={(i: any) => String(i.id)}
@@ -78,4 +79,3 @@ export default function AdminArticlesScreen() {
     </Screen>
   );
 }
-

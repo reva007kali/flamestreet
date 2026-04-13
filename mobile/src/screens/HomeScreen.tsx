@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  FlatList,
   Image,
   Pressable,
   RefreshControl,
@@ -13,10 +12,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
+import { LinearGradient } from "expo-linear-gradient";
 import { api } from "../lib/api";
 import { toPublicUrl } from "../lib/assets";
 import { useAuthStore } from "../store/authStore";
 import Card from "../ui/Card";
+import AppFlatList from "../ui/AppFlatList";
 import { theme } from "../ui/theme";
 import Screen from "../ui/Screen";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -55,6 +56,8 @@ export default function HomeScreen() {
     },
   ];
   const [bannerIndex, setBannerIndex] = useState(0);
+  const bannerIndexRef = useRef(0);
+  const bannerListRef = useRef<any>(null);
   const [lastAddress, setLastAddress] = useState<string>("");
 
   const promoBannersQuery = useQuery({
@@ -122,6 +125,26 @@ export default function HomeScreen() {
       ? promoBannersQuery.data
       : fallbackBanners) ?? [];
 
+  const onBannerViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    const i = viewableItems?.[0]?.index;
+    if (typeof i === "number") {
+      bannerIndexRef.current = i;
+      setBannerIndex(i);
+    }
+  });
+
+  useEffect(() => {
+    if ((banners?.length ?? 0) <= 1) return;
+    const id = setInterval(() => {
+      const current = bannerIndexRef.current ?? 0;
+      const next = (current + 1) % banners.length;
+      bannerIndexRef.current = next;
+      setBannerIndex(next);
+      bannerListRef.current?.scrollToIndex?.({ index: next, animated: true });
+    }, 3000);
+    return () => clearInterval(id);
+  }, [banners.length, width]);
+
   const gymsQuery = useQuery({
     queryKey: ["gyms"],
     queryFn: async () => {
@@ -173,16 +196,25 @@ export default function HomeScreen() {
         }
       >
         <View style={{ width: "100%" }}>
-          <FlatList
+          <AppFlatList
+            ref={bannerListRef}
             data={banners}
             keyExtractor={(i: any) => String(i.id)}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            onViewableItemsChanged={({ viewableItems }) => {
-              const i = viewableItems?.[0]?.index;
-              if (typeof i === "number") setBannerIndex(i);
+            getItemLayout={(_, index) => ({
+              length: width,
+              offset: width * index,
+              index,
+            })}
+            onScrollToIndexFailed={(info) => {
+              bannerListRef.current?.scrollToOffset?.({
+                offset: info.averageItemLength * info.index,
+                animated: true,
+              });
             }}
+            onViewableItemsChanged={onBannerViewableItemsChanged.current}
             viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
             renderItem={({ item }: any) => {
               const remote =
@@ -196,57 +228,81 @@ export default function HomeScreen() {
                     width,
                     height: 300,
                     borderRadius: theme.radius.lg,
-                    overflow: "hidden",
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.28,
+                    shadowRadius: 14,
+                    elevation: 8,
                   }}
                 >
-                  {source ? (
-                    <Image
-                      source={source}
-                      style={{ width: "100%", height: 300 }}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View
-                      style={{
-                        width: "100%",
-                        height: 300,
-                        backgroundColor: "#0a0f0c",
-                        borderBottomWidth: 1,
-                        borderBottomColor: theme.colors.border,
-                      }}
-                    />
-                  )}
                   <View
                     style={{
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      top: 0,
-                      backgroundColor: "rgba(0,0,0,0.45)",
-                    }}
-                  />
-                  <View
-                    style={{
-                      position: "absolute",
-                      left: 16,
-                      right: 16,
-                      bottom: 38,
-                      gap: 6,
+                      flex: 1,
+                      borderRadius: theme.radius.lg,
+                      overflow: "hidden",
                     }}
                   >
-                    <Text
+                    {source ? (
+                      <Image
+                        source={source}
+                        style={{ width: "100%", height: 300 }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          width: "100%",
+                          height: 300,
+                          backgroundColor: "#0a0f0c",
+                          borderBottomWidth: 1,
+                          borderBottomColor: theme.colors.border,
+                        }}
+                      />
+                    )}
+                    <LinearGradient
+                      colors={["rgba(0,0,0,0.55)", "rgba(0,0,0,0)"]}
+                      start={{ x: 0.5, y: 0 }}
+                      end={{ x: 0.5, y: 1 }}
                       style={{
-                        color: theme.colors.text,
-                        fontSize: 25,
-                        fontWeight: "900",
+                        position: "absolute",
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        height: 120,
+                      }}
+                    />
+                    <View
+                      style={{
+                        position: "absolute",
+                        left: 16,
+                        right: 16,
+                        bottom: 38,
+                        gap: 6,
                       }}
                     >
-                      {item.title}
-                    </Text>
-                    <Text style={{ color: theme.colors.muted }}>
-                      {item.subtitle}
-                    </Text>
+                      <Text
+                        style={{
+                          color: theme.colors.text,
+                          fontSize: 25,
+                          fontWeight: "900",
+                          textShadowColor: "rgba(0,0,0,0.65)",
+                          textShadowOffset: { width: 0, height: 2 },
+                          textShadowRadius: 8,
+                        }}
+                      >
+                        {item.title}
+                      </Text>
+                      <Text
+                        style={{
+                          color: "rgba(255,255,255,0.9)",
+                          textShadowColor: "rgba(0,0,0,0.65)",
+                          textShadowOffset: { width: 0, height: 2 },
+                          textShadowRadius: 8,
+                        }}
+                      >
+                        {item.subtitle}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               );

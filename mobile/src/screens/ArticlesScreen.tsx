@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
-import { FlatList, Image, Pressable, Text, View } from "react-native";
+import { Image, Pressable, Text, View } from "react-native";
 import { api } from "../lib/api";
 import { toPublicUrl } from "../lib/assets";
 import Card from "../ui/Card";
+import AppFlatList from "../ui/AppFlatList";
 import Screen from "../ui/Screen";
 import { theme } from "../ui/theme";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -33,7 +34,7 @@ export default function ArticlesScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={query.data ?? []}
         keyExtractor={(i) => String(i.id)}

@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
 import {
-  FlatList,
   Image,
   Pressable,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 import { BlurView } from "expo-blur";
 import { api } from "../lib/api";
 import Card from "../ui/Card";
+import AppFlatList from "../ui/AppFlatList";
 import Screen from "../ui/Screen";
 import { theme } from "../ui/theme";
 import { toPublicUrl } from "../lib/assets";
@@ -98,7 +98,7 @@ export default function ProductsScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{
           padding: theme.spacing.md,
           gap: 12,

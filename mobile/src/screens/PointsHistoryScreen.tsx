@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { FlatList, RefreshControl, Text, View } from "react-native";
+import { RefreshControl, Text, View } from "react-native";
 import { api } from "../lib/api";
 import Screen from "../ui/Screen";
 import Card from "../ui/Card";
+import AppFlatList from "../ui/AppFlatList";
 import { theme } from "../ui/theme";
 import { useAuthStore } from "../store/authStore";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -51,7 +52,7 @@ export default function PointsHistoryScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={rows}
         keyExtractor={(i) => String(i.id)}

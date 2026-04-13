@@ -1,10 +1,11 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { FlatList, Image, RefreshControl, Text, View } from "react-native";
+import { Image, RefreshControl, Text, View } from "react-native";
 import { useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { toPublicUrl } from "../lib/assets";
 import Screen from "../ui/Screen";
 import Card from "../ui/Card";
+import AppFlatList from "../ui/AppFlatList";
 import { theme } from "../ui/theme";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import TextField from "../ui/TextField";
@@ -63,7 +64,7 @@ export default function TrainerMembersScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={rows}
         keyExtractor={(i) => String(i.member?.id)}

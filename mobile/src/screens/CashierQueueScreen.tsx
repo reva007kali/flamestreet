@@ -2,12 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Linking, Pressable, RefreshControl, Text, View } from "react-native";
+import { Linking, Pressable, RefreshControl, Text, View } from "react-native";
 import { api } from "../lib/api";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { useOrderQueueStore } from "../store/orderQueueStore";
 import Button from "../ui/Button";
 import Card from "../ui/Card";
+import AppFlatList from "../ui/AppFlatList";
 import Screen from "../ui/Screen";
 import { theme } from "../ui/theme";
 
@@ -142,7 +143,7 @@ export default function CashierQueueScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={rows}
         keyExtractor={(o) => String(o.id)}

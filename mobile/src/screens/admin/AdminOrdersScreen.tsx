@@ -1,7 +1,8 @@
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
-import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import { Pressable, RefreshControl, Text, View } from "react-native";
 import { api } from "../../lib/api";
+import AppFlatList from "../../ui/AppFlatList";
 import Screen from "../../ui/Screen";
 import Card from "../../ui/Card";
 import Button from "../../ui/Button";
@@ -48,7 +49,7 @@ export default function AdminOrdersScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={rows}
         keyExtractor={(i: any) => String(i.id)}
@@ -126,4 +127,3 @@ export default function AdminOrdersScreen() {
     </Screen>
   );
 }
-

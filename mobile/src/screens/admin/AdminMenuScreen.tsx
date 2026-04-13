@@ -1,6 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import AppFlatList from "../../ui/AppFlatList";
 import Screen from "../../ui/Screen";
 import Card from "../../ui/Card";
 import { theme } from "../../ui/theme";
@@ -103,7 +104,7 @@ export default function AdminMenuScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={rows}
         keyExtractor={(i) => i.key}

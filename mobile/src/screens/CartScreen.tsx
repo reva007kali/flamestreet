@@ -1,6 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
-import { FlatList, Image, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import { useCartStore } from "../store/cartStore";
+import AppFlatList from "../ui/AppFlatList";
 import Button from "../ui/Button";
 import Card from "../ui/Card";
 import Screen from "../ui/Screen";
@@ -19,7 +20,7 @@ export default function CartScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={items}
         keyExtractor={(i) => i.key}

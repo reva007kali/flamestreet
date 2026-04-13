@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import { Pressable, RefreshControl, Text, View } from "react-native";
 import { loadInbox, markRead, type InboxItem } from "../lib/notificationInbox";
+import AppFlatList from "../ui/AppFlatList";
 import Screen from "../ui/Screen";
 import { theme } from "../ui/theme";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
@@ -58,7 +59,7 @@ export default function NotificationsScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={items}
         keyExtractor={(i) => i.id}

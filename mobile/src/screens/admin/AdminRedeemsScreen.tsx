@@ -1,7 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Alert, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
+import { Alert, Pressable, RefreshControl, Text, View } from "react-native";
 import { api } from "../../lib/api";
+import AppFlatList from "../../ui/AppFlatList";
 import Screen from "../../ui/Screen";
 import Card from "../../ui/Card";
 import Button from "../../ui/Button";
@@ -40,7 +41,7 @@ export default function AdminRedeemsScreen() {
 
   return (
     <Screen>
-      <FlatList
+      <AppFlatList
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={rows}
         keyExtractor={(i: any) => String(i.id)}
@@ -130,4 +131,3 @@ export default function AdminRedeemsScreen() {
     </Screen>
   );
 }
-
