@@ -7,9 +7,7 @@ Route::get('/', function () {
     return response()->json([
         'status' => 'ok',
         'service' => 'Flamestreet API',
-        'env' => app()->environment(),
-        'timestamp' => now()
     ]);
 });
 
-Route::post('/webhooks/doku/notify', [DokuWebhookController::class, 'notify']);
+Route::post('/webhooks/doku/notify', [DokuWebhookController::class, 'notify'])->middleware('throttle:webhooks');

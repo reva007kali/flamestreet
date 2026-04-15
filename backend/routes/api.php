@@ -32,16 +32,16 @@ use App\Http\Controllers\Api\Staff\CourierController as StaffCourierController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 });
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [MeController::class, 'show']);
     Route::put('/me/profile', [MeController::class, 'updateProfile']);
-    Route::post('/me/avatar', [MeController::class, 'updateAvatar']);
-    Route::put('/me/avatar', [MeController::class, 'updateAvatar']);
+    Route::post('/me/avatar', [MeController::class, 'updateAvatar'])->middleware('throttle:uploads');
+    Route::put('/me/avatar', [MeController::class, 'updateAvatar'])->middleware('throttle:uploads');
     Route::delete('/me/avatar', [MeController::class, 'deleteAvatar']);
     Route::put('/me/push-token', [MeController::class, 'updatePushToken']);
     Route::get('/member/points', [MemberPointController::class, 'show'])->middleware('role:member');
@@ -59,7 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:member|trainer')->group(function () {
         Route::post('/orders', [OrderController::class, 'store']);
         Route::get('/orders', [OrderController::class, 'index']);
-        Route::post('/orders/{id}/payment', [OrderController::class, 'uploadPaymentProof']);
+        Route::post('/orders/{id}/payment', [OrderController::class, 'uploadPaymentProof'])->middleware('throttle:uploads');
         Route::get('/orders/{id}/doku/checkout', [DokuCheckoutController::class, 'show']);
         Route::post('/orders/{id}/doku/checkout', [DokuCheckoutController::class, 'create']);
         Route::get('/orders/{id}/doku/checkout/status', [DokuCheckoutController::class, 'status']);
