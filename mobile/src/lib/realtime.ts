@@ -1,11 +1,12 @@
 import Echo from "laravel-echo";
 import Pusher from "pusher-js/react-native";
+import { getApiBaseUrl } from "./env";
 
 export function createEcho(token: string) {
   const key = process.env.EXPO_PUBLIC_PUSHER_APP_KEY;
   if (!key) return null;
 
-  const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL ?? "";
+  const apiBase = getApiBaseUrl();
   const host = process.env.EXPO_PUBLIC_PUSHER_HOST;
   const cluster = process.env.EXPO_PUBLIC_PUSHER_CLUSTER;
   const port = process.env.EXPO_PUBLIC_PUSHER_PORT
@@ -36,4 +37,3 @@ export function createEcho(token: string) {
 
   return echo;
 }
-
