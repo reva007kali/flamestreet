@@ -700,7 +700,7 @@ export default function HomeScreen() {
               >
                 Flame-news
               </Text>
-              <Pressable onPress={() => navigation.navigate("Articles")}>
+              <Pressable onPress={() => navigation.navigate("Feed")}>
                 <Text style={{ color: theme.colors.green, fontWeight: "800" }}>
                   View all
                 </Text>
@@ -712,7 +712,7 @@ export default function HomeScreen() {
                 <Pressable
                   key={a.id}
                   onPress={() =>
-                    navigation.navigate("ArticleDetail", { slug: a.slug })
+                    navigation.navigate("FeedDetail", { slug: a.slug })
                   }
                 >
                   <View
@@ -778,9 +778,7 @@ export default function HomeScreen() {
               );
             })}
             {!articles.length ? (
-              <Text style={{ color: theme.colors.muted }}>
-                No articles yet.
-              </Text>
+              <Text style={{ color: theme.colors.muted }}>No feed yet.</Text>
             ) : null}
           </Card>
 

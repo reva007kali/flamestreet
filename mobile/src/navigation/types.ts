@@ -7,7 +7,12 @@ export type RootStackParamList = {
   Checkout: undefined;
   Profile: undefined;
   Notifications: undefined;
-  ArticleDetail: { slug: string };
+  FeedDetail: { slug: string };
+  Flamehub: undefined;
+  FlamehubCreate: undefined;
+  FlamehubPost: { id: number };
+  FlamehubProfile: { username: string };
+  FlamehubSearch: undefined;
   PointsHistory: undefined;
   TrainerMembers: undefined;
   TrainerWithdraw: undefined;
@@ -40,6 +45,7 @@ export type AppTabParamList = {
   Products: undefined;
   Cart: undefined;
   Orders: undefined;
-  Articles: undefined;
+  Feed: undefined;
+  Flamehub: undefined;
   Queue: { preset?: "all" | "unpaid" } | undefined;
 };

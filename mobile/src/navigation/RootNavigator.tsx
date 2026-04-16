@@ -20,6 +20,11 @@ import OrdersScreen from "../screens/OrdersScreen";
 import OrderDetailScreen from "../screens/OrderDetailScreen";
 import ArticlesScreen from "../screens/ArticlesScreen";
 import ArticleDetailScreen from "../screens/ArticleDetailScreen";
+import FlamehubFeedScreen from "../screens/flamehub/FlamehubFeedScreen";
+import FlamehubCreatePostScreen from "../screens/flamehub/FlamehubCreatePostScreen";
+import FlamehubPostScreen from "../screens/flamehub/FlamehubPostScreen";
+import FlamehubProfileScreen from "../screens/flamehub/FlamehubProfileScreen";
+import FlamehubSearchScreen from "../screens/flamehub/FlamehubSearchScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import PointsHistoryScreen from "../screens/PointsHistoryScreen";
@@ -159,14 +164,21 @@ function AppTabs() {
   const isCashier = roles.includes("cashier");
   const isCourier = roles.includes("courier");
   const isBackoffice = isAdmin || isCashier || isCourier;
-  const initialRouteName = isAdmin ? "Dashboard" : isCashier ? "Dashboard" : isBackoffice ? "Orders" : "Home";
+  const initialRouteName = isAdmin
+    ? "Dashboard"
+    : isCashier
+      ? "Dashboard"
+      : isBackoffice
+        ? "Orders"
+        : "Home";
   const showHome = !isBackoffice;
+  const showFlamehub = !isBackoffice;
   const showCart = !isBackoffice;
   const showProducts = !isCashier && !isCourier;
   const showStaffDashboard = isCashier;
   const showQueue = isCashier;
   const showOrders = !isCashier;
-  const showArticles = !isCashier;
+  const showFeed = !isCashier;
   const cartCount = useCartStore((s) => s.totalItems());
 
   return (
@@ -189,11 +201,12 @@ function AppTabs() {
             Dashboard: "speedometer",
             Admin: "grid",
             Home: "home",
+            Flamehub: "flame",
             Products: "fast-food",
             Cart: "cart",
             Queue: "list",
             Orders: "receipt",
-            Articles: "compass",
+            Feed: "compass",
           };
           const name = map[route.name] ?? "ellipse";
           const iconSize = size ?? 22;
@@ -239,14 +252,32 @@ function AppTabs() {
         },
       })}
     >
-      {isAdmin ? <Tab.Screen name="Dashboard" component={AdminDashboardScreen} /> : null}
-      {showStaffDashboard ? <Tab.Screen name="Dashboard" component={CashierDashboardScreen} /> : null}
-      {isAdmin ? <Tab.Screen name="Admin" component={AdminMenuScreen} options={{ title: "Admin" }} /> : null}
-      {showQueue ? <Tab.Screen name="Queue" component={CashierQueueScreen} options={{ title: "Antrian" }} /> : null}
-      {showHome ? (
+      {isAdmin ? (
+        <Tab.Screen name="Dashboard" component={AdminDashboardScreen} />
+      ) : null}
+      {showStaffDashboard ? (
+        <Tab.Screen name="Dashboard" component={CashierDashboardScreen} />
+      ) : null}
+      {isAdmin ? (
         <Tab.Screen
-          name="Home"
-          component={HomeScreen}
+          name="Admin"
+          component={AdminMenuScreen}
+          options={{ title: "Admin" }}
+        />
+      ) : null}
+      {showQueue ? (
+        <Tab.Screen
+          name="Queue"
+          component={CashierQueueScreen}
+          options={{ title: "Antrian" }}
+        />
+      ) : null}
+      {showHome ? <Tab.Screen name="Home" component={HomeScreen} /> : null}
+      {showFlamehub ? (
+        <Tab.Screen
+          name="Flamehub"
+          component={FlamehubFeedScreen}
+          options={{ title: "Flamehub" }}
         />
       ) : null}
       {showProducts ? (
@@ -257,8 +288,19 @@ function AppTabs() {
         />
       ) : null}
       {showCart ? <Tab.Screen name="Cart" component={CartScreen} /> : null}
-      {showOrders ? <Tab.Screen name="Orders" component={isAdmin ? AdminOrdersScreen : OrdersScreen} /> : null}
-      {showArticles ? <Tab.Screen name="Articles" component={isAdmin ? AdminArticlesScreen : ArticlesScreen} /> : null}
+      {showOrders ? (
+        <Tab.Screen
+          name="Orders"
+          component={isAdmin ? AdminOrdersScreen : OrdersScreen}
+        />
+      ) : null}
+      {showFeed ? (
+        <Tab.Screen
+          name="Feed"
+          component={isAdmin ? AdminArticlesScreen : ArticlesScreen}
+          options={{ title: "Feed" }}
+        />
+      ) : null}
     </Tab.Navigator>
   );
 }
@@ -396,10 +438,42 @@ export default function RootNavigator() {
           }}
         />
         <RootStack.Screen
-          name="ArticleDetail"
+          name="FeedDetail"
           component={ArticleDetailScreen}
           options={{
-            title: "Article",
+            title: "Feed",
+            ...stackScreenAnimation,
+          }}
+        />
+        <RootStack.Screen
+          name="FlamehubCreate"
+          component={FlamehubCreatePostScreen}
+          options={{
+            title: "New Post",
+            ...stackScreenAnimation,
+          }}
+        />
+        <RootStack.Screen
+          name="FlamehubPost"
+          component={FlamehubPostScreen}
+          options={{
+            title: "Post",
+            ...stackScreenAnimation,
+          }}
+        />
+        <RootStack.Screen
+          name="FlamehubProfile"
+          component={FlamehubProfileScreen}
+          options={{
+            title: "Profile",
+            ...stackScreenAnimation,
+          }}
+        />
+        <RootStack.Screen
+          name="FlamehubSearch"
+          component={FlamehubSearchScreen}
+          options={{
+            title: "Search",
             ...stackScreenAnimation,
           }}
         />

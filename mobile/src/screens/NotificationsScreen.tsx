@@ -52,14 +52,14 @@ export default function NotificationsScreen() {
       return;
     }
     if (d.slug) {
-      navigation.navigate("ArticleDetail", { slug: String(d.slug) });
+      navigation.navigate("FeedDetail", { slug: String(d.slug) });
       return;
     }
   };
 
   return (
     <Screen>
-      <AppFlatList
+      <AppFlatList<InboxItem>
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={items}
         keyExtractor={(i) => i.id}
@@ -75,7 +75,13 @@ export default function NotificationsScreen() {
         }
         ListHeaderComponent={
           <View style={{ gap: 6 }}>
-            <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: "900" }}>
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 20,
+                fontWeight: "900",
+              }}
+            >
               Notifications
             </Text>
             <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
@@ -84,7 +90,9 @@ export default function NotificationsScreen() {
           </View>
         }
         ListEmptyComponent={
-          <Text style={{ color: theme.colors.muted }}>No notifications yet.</Text>
+          <Text style={{ color: theme.colors.muted }}>
+            No notifications yet.
+          </Text>
         }
         renderItem={({ item }) => {
           const when = new Date(item.createdAt).toLocaleString("id-ID");
@@ -109,10 +117,18 @@ export default function NotificationsScreen() {
               <Card
                 style={{
                   gap: 8,
-                  borderColor: item.read ? theme.colors.border : theme.colors.green,
+                  borderColor: item.read
+                    ? theme.colors.border
+                    : theme.colors.green,
                 }}
               >
-                <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    gap: 12,
+                    alignItems: "center",
+                  }}
+                >
                   <View
                     style={{
                       width: 36,
@@ -125,18 +141,30 @@ export default function NotificationsScreen() {
                       justifyContent: "center",
                     }}
                   >
-                    <Ionicons name={icon as any} size={18} color={theme.colors.green} />
+                    <Ionicons
+                      name={icon as any}
+                      size={18}
+                      color={theme.colors.green}
+                    />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ color: theme.colors.text, fontWeight: "900" }} numberOfLines={1}>
+                    <Text
+                      style={{ color: theme.colors.text, fontWeight: "900" }}
+                      numberOfLines={1}
+                    >
                       {item.title}
                     </Text>
                     {item.body ? (
-                      <Text style={{ color: theme.colors.muted, fontSize: 12 }} numberOfLines={2}>
+                      <Text
+                        style={{ color: theme.colors.muted, fontSize: 12 }}
+                        numberOfLines={2}
+                      >
                         {item.body}
                       </Text>
                     ) : null}
-                    <Text style={{ color: theme.colors.muted, fontSize: 11 }}>{when}</Text>
+                    <Text style={{ color: theme.colors.muted, fontSize: 11 }}>
+                      {when}
+                    </Text>
                   </View>
                   {!item.read ? (
                     <View

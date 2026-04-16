@@ -1,10 +1,7 @@
-import { forwardRef } from "react";
+import { forwardRef, type ReactElement } from "react";
 import { FlatList, type FlatListProps } from "react-native";
 
-const AppFlatList = forwardRef(function AppFlatListInner<T>(
-  props: FlatListProps<T>,
-  ref: any,
-) {
+function AppFlatListInner<T>(props: FlatListProps<T>, ref: any) {
   const {
     showsVerticalScrollIndicator = false,
     showsHorizontalScrollIndicator = false,
@@ -18,6 +15,10 @@ const AppFlatList = forwardRef(function AppFlatListInner<T>(
       {...rest}
     />
   );
-});
+}
+
+const AppFlatList = forwardRef(AppFlatListInner) as <T>(
+  props: FlatListProps<T> & { ref?: any },
+) => ReactElement;
 
 export default AppFlatList;

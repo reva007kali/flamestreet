@@ -23,9 +23,9 @@ export default function ArticlesScreen() {
   const navigation = useNavigation<any>();
   const { refreshing, onRefresh } = usePullToRefresh();
 
-  const query = useQuery({
+  const query = useQuery<Article[]>({
     queryKey: ["articles"],
-    queryFn: async (): Promise<Article[]> => {
+    queryFn: async () => {
       const r = await api.get("/articles", { params: { limit: 20 } });
       const data = r.data?.data ?? [];
       return Array.isArray(data) ? data : [];
@@ -42,13 +42,17 @@ export default function ArticlesScreen() {
         onRefresh={onRefresh}
         ListEmptyComponent={
           <Text style={{ color: theme.colors.muted }}>
-            {query.isLoading ? "Loading…" : "No articles"}
+            {query.isLoading ? "Loading…" : "No feed"}
           </Text>
         }
         renderItem={({ item }) => {
           const img = toPublicUrl(item.cover_image);
           return (
-            <Pressable onPress={() => navigation.navigate("ArticleDetail", { slug: item.slug })}>
+            <Pressable
+              onPress={() =>
+                navigation.navigate("FeedDetail", { slug: item.slug })
+              }
+            >
               <Card style={{ gap: 10 }}>
                 {img ? (
                   <Image
@@ -73,7 +77,13 @@ export default function ArticlesScreen() {
                     }}
                   />
                 )}
-                <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: "900" }}>
+                <Text
+                  style={{
+                    color: theme.colors.text,
+                    fontSize: 16,
+                    fontWeight: "900",
+                  }}
+                >
                   {item.title}
                 </Text>
                 {item.excerpt ? (

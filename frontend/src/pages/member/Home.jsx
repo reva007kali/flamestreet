@@ -251,14 +251,14 @@ export default function Home() {
             </div>
           </Link>
           <Link
-            to="/member/articles"
+            to="/member/feed"
             className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-4 text-center backdrop-blur hover:border-zinc-700"
           >
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
               <FileText className="h-5 w-5 text-zinc-300" />
             </div>
             <div className="mt-2 text-[11px] font-medium text-zinc-200">
-              Articles
+              Feed
             </div>
           </Link>
           <a
@@ -288,9 +288,9 @@ export default function Home() {
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Articles</h2>
+          <h2 className="text-lg font-semibold">Feed</h2>
           <Link
-            to="/member/articles"
+            to="/member/feed"
             className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)]"
           >
             View all

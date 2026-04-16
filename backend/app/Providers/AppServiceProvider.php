@@ -22,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->loadMigrationsFrom(app_path('Database/Migrations'));
+        }
+
         RateLimiter::for('auth', function (Request $request) {
             $ip = (string) $request->ip();
             $email = (string) $request->input('email', '');

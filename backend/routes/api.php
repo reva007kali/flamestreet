@@ -29,6 +29,11 @@ use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\Admin\ArticleController as AdminArticleController;
 use App\Http\Controllers\Api\Staff\OrderController as StaffOrderController;
 use App\Http\Controllers\Api\Staff\CourierController as StaffCourierController;
+use App\Http\Controllers\Api\Flamehub\FeedController as FlamehubFeedController;
+use App\Http\Controllers\Api\Flamehub\PostController as FlamehubPostController;
+use App\Http\Controllers\Api\Flamehub\CommentController as FlamehubCommentController;
+use App\Http\Controllers\Api\Flamehub\LikeController as FlamehubLikeController;
+use App\Http\Controllers\Api\Flamehub\UserController as FlamehubUserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -55,6 +60,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/gyms', [GymController::class, 'index']);
     Route::get('/articles', [ArticleController::class, 'index']);
     Route::get('/articles/{slug}', [ArticleController::class, 'show']);
+
+    Route::prefix('flamehub')->group(function () {
+        Route::get('/feed', [FlamehubFeedController::class, 'index']);
+        Route::post('/posts', [FlamehubPostController::class, 'store'])->middleware('throttle:uploads');
+        Route::get('/posts/{id}', [FlamehubPostController::class, 'show']);
+        Route::delete('/posts/{id}', [FlamehubPostController::class, 'destroy']);
+        Route::post('/posts/{postId}/like', [FlamehubLikeController::class, 'store']);
+        Route::delete('/posts/{postId}/like', [FlamehubLikeController::class, 'destroy']);
+        Route::get('/posts/{postId}/comments', [FlamehubCommentController::class, 'index']);
+        Route::post('/posts/{postId}/comments', [FlamehubCommentController::class, 'store']);
+        Route::get('/users/search', [FlamehubUserController::class, 'search']);
+        Route::get('/users/{username}', [FlamehubUserController::class, 'show']);
+        Route::post('/users/{username}/follow', [FlamehubUserController::class, 'follow']);
+        Route::delete('/users/{username}/follow', [FlamehubUserController::class, 'unfollow']);
+    });
 
     Route::middleware('role:member|trainer')->group(function () {
         Route::post('/orders', [OrderController::class, 'store']);

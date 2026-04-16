@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import Button from "../ui/Button";
-import Card from "../ui/Card";
-import Screen from "../ui/Screen";
+import AuthShell from "../ui/AuthShell";
 import TextField from "../ui/TextField";
 import { theme } from "../ui/theme";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
@@ -78,105 +77,100 @@ export default function RegisterScreen() {
   }
 
   return (
-    <Screen>
-      <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.md, gap: theme.spacing.md }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={{ gap: 6 }}>
-          <Text style={{ color: theme.colors.text, fontSize: 28, fontWeight: "900" }}>
-            Register
-          </Text>
-          <Text style={{ color: theme.colors.muted }}>Create your account.</Text>
-        </View>
+    <AuthShell
+      title="Register"
+      subtitle="Buat akun baru untuk mulai pakai Flamestreet."
+      scroll
+    >
+      <View style={{ gap: theme.spacing.md }}>
+        {allowTrainer ? (
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <Button
+              variant={role === "member" ? "primary" : "secondary"}
+              onPress={() => setRole("member")}
+              style={{ flex: 1, paddingVertical: 10 }}
+            >
+              Member
+            </Button>
+            <Button
+              variant={role === "trainer" ? "primary" : "secondary"}
+              onPress={() => setRole("trainer")}
+              style={{ flex: 1, paddingVertical: 10 }}
+            >
+              Trainer
+            </Button>
+          </View>
+        ) : null}
 
-        <Card style={{ gap: theme.spacing.md }}>
-          {allowTrainer ? (
-            <View style={{ flexDirection: "row", gap: 10 }}>
-              <Button
-                variant={role === "member" ? "primary" : "secondary"}
-                onPress={() => setRole("member")}
-                style={{ flex: 1, paddingVertical: 10 }}
-              >
-                Member
-              </Button>
-              <Button
-                variant={role === "trainer" ? "primary" : "secondary"}
-                onPress={() => setRole("trainer")}
-                style={{ flex: 1, paddingVertical: 10 }}
-              >
-                Trainer
-              </Button>
-            </View>
-          ) : null}
+        <TextField
+          label="Full name"
+          value={fullName}
+          onChangeText={setFullName}
+          placeholder="Full name"
+        />
+        <TextField
+          label="Username"
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder="Username"
+        />
+        <TextField
+          label="Phone number"
+          value={phoneNumber}
+          onChangeText={setPhoneNumber}
+          keyboardType="phone-pad"
+          placeholder="Phone number"
+        />
+        <TextField
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder="Email"
+        />
+        <TextField
+          label="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholder="Password"
+        />
+        <TextField
+          label="Date of birth (YYYY-MM-DD)"
+          value={dateOfBirth}
+          onChangeText={setDateOfBirth}
+          placeholder="YYYY-MM-DD"
+        />
 
+        {role === "member" ? (
           <TextField
-            label="Full name"
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Full name"
+            label="Referral code (optional)"
+            value={referralCode}
+            onChangeText={setReferralCode}
+            autoCapitalize="characters"
+            placeholder="Referral code"
           />
-          <TextField
-            label="Username"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            autoCorrect={false}
-            placeholder="Username"
-          />
-          <TextField
-            label="Phone number"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            keyboardType="phone-pad"
-            placeholder="Phone number"
-          />
-          <TextField
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            placeholder="Email"
-          />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="Password"
-          />
-          <TextField
-            label="Date of birth (YYYY-MM-DD)"
-            value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-            placeholder="YYYY-MM-DD"
-          />
+        ) : null}
 
-          {role === "member" ? (
-            <TextField
-              label="Referral code (optional)"
-              value={referralCode}
-              onChangeText={setReferralCode}
-              autoCapitalize="characters"
-              placeholder="Referral code"
-            />
-          ) : null}
+        <Button onPress={onSubmit} disabled={loading}>
+          {loading ? "Creating..." : "Register"}
+        </Button>
 
-          <Button onPress={onSubmit} disabled={loading}>
-            {loading ? "Creating..." : "Register"}
-          </Button>
-        </Card>
-
-        <Pressable onPress={() => navigation.navigate("Login")}>
-          <Text style={{ color: theme.colors.muted }}>
-            Already have account?{" "}
-            <Text style={{ color: theme.colors.green, fontWeight: "800" }}>
+        <Pressable
+          onPress={() => navigation.navigate("Login")}
+          style={{ marginTop: 2, alignItems: "center" }}
+        >
+          <Text style={{ color: "rgba(232,245,238,0.78)" }}>
+            Sudah punya akun?{" "}
+            <Text style={{ color: theme.colors.green, fontWeight: "900" }}>
               Login
             </Text>
           </Text>
         </Pressable>
-      </ScrollView>
-    </Screen>
+      </View>
+    </AuthShell>
   );
 }

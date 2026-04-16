@@ -3,8 +3,7 @@ import { Alert, Pressable, Text, View } from "react-native";
 import { api } from "../lib/api";
 import { useAuthStore } from "../store/authStore";
 import Button from "../ui/Button";
-import Card from "../ui/Card";
-import Screen from "../ui/Screen";
+import AuthShell from "../ui/AuthShell";
 import TextField from "../ui/TextField";
 import { theme } from "../ui/theme";
 import { useNavigation } from "@react-navigation/native";
@@ -41,17 +40,8 @@ export default function LoginScreen() {
   }
 
   return (
-    <Screen style={{ padding: theme.spacing.md, gap: theme.spacing.md }}>
-      <View style={{ gap: 6 }}>
-        <Text
-          style={{ color: theme.colors.text, fontSize: 28, fontWeight: "900" }}
-        >
-          Flamestreet
-        </Text>
-        <Text style={{ color: theme.colors.muted }}>Login to continue</Text>
-      </View>
-
-      <Card style={{ gap: theme.spacing.md }}>
+    <AuthShell title="Flamestreet" subtitle="Login untuk lanjut.">
+      <View style={{ gap: theme.spacing.md }}>
         <TextField
           label="Login"
           value={login}
@@ -72,16 +62,19 @@ export default function LoginScreen() {
         <Button onPress={onSubmit} disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
         </Button>
-      </Card>
+      </View>
 
-      <Pressable onPress={() => navigation.navigate("Register")}>
-        <Text style={{ color: theme.colors.muted }}>
-          Don't have account?{" "}
-          <Text style={{ color: theme.colors.green, fontWeight: "800" }}>
+      <Pressable
+        onPress={() => navigation.navigate("Register")}
+        style={{ marginTop: theme.spacing.md, alignItems: "center" }}
+      >
+        <Text style={{ color: "rgba(232,245,238,0.78)" }}>
+          Belum punya akun?{" "}
+          <Text style={{ color: theme.colors.green, fontWeight: "900" }}>
             Register
           </Text>
         </Text>
       </Pressable>
-    </Screen>
+    </AuthShell>
   );
 }

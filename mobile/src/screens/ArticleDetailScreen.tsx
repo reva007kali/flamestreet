@@ -9,7 +9,7 @@ import Screen from "../ui/Screen";
 import { theme } from "../ui/theme";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 
-type ArticleDetailRoute = RouteProp<RootStackParamList, "ArticleDetail">;
+type FeedDetailRoute = RouteProp<RootStackParamList, "FeedDetail">;
 
 type Article = {
   id: number;
@@ -22,16 +22,19 @@ type Article = {
 };
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export default function ArticleDetailScreen() {
-  const route = useRoute<ArticleDetailRoute>();
+  const route = useRoute<FeedDetailRoute>();
   const { refreshing, onRefresh } = usePullToRefresh();
 
-  const query = useQuery({
+  const query = useQuery<Article>({
     queryKey: ["article", route.params.slug],
-    queryFn: async (): Promise<Article> => {
+    queryFn: async () => {
       const r = await api.get(`/articles/${route.params.slug}`);
       return r.data?.article;
     },
@@ -43,7 +46,10 @@ export default function ArticleDetailScreen() {
   return (
     <Screen>
       <ScrollView
-        contentContainerStyle={{ padding: theme.spacing.md, gap: theme.spacing.md }}
+        contentContainerStyle={{
+          padding: theme.spacing.md,
+          gap: theme.spacing.md,
+        }}
         refreshControl={
           <RefreshControl
             tintColor={theme.colors.text}
@@ -52,7 +58,9 @@ export default function ArticleDetailScreen() {
           />
         }
       >
-        {query.isLoading ? <Text style={{ color: theme.colors.muted }}>Loading…</Text> : null}
+        {query.isLoading ? (
+          <Text style={{ color: theme.colors.muted }}>Loading…</Text>
+        ) : null}
         {article ? (
           <Card style={{ gap: 12 }}>
             {img ? (
@@ -78,7 +86,13 @@ export default function ArticleDetailScreen() {
                 }}
               />
             )}
-            <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: "900" }}>
+            <Text
+              style={{
+                color: theme.colors.text,
+                fontSize: 20,
+                fontWeight: "900",
+              }}
+            >
               {article.title}
             </Text>
             {article.published_at ? (
@@ -87,7 +101,9 @@ export default function ArticleDetailScreen() {
               </Text>
             ) : null}
             {article.excerpt ? (
-              <Text style={{ color: theme.colors.muted }}>{article.excerpt}</Text>
+              <Text style={{ color: theme.colors.muted }}>
+                {article.excerpt}
+              </Text>
             ) : null}
             {article.content_html ? (
               <Text style={{ color: theme.colors.text }}>
