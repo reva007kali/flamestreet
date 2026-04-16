@@ -65,7 +65,7 @@ export default function ProfileScreen() {
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       quality: 0.85,
       aspect: [1, 1],

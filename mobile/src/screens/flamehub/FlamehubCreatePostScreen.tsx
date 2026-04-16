@@ -57,7 +57,7 @@ export default function FlamehubCreatePostScreen() {
 
   async function pickImages() {
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsMultipleSelection: true,
       selectionLimit: 10,
       quality: 0.7,
@@ -75,7 +75,7 @@ export default function FlamehubCreatePostScreen() {
 
   async function pickVideo() {
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ["videos"],
       allowsMultipleSelection: false,
       quality: 1,
     });
