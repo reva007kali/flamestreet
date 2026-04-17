@@ -17,6 +17,9 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
+  if (payload?.notification?.title) {
+    return;
+  }
   const d = payload?.data ?? {};
   const tag =
     d?.type && (d?.order_id || d?.order_number)
@@ -24,8 +27,16 @@ messaging.onBackgroundMessage((payload) => {
       : d?.type
         ? String(d.type)
         : undefined;
-  self.registration.showNotification(payload.notification.title, {
-    body: payload.notification.body,
+  const title =
+    (d?.title && String(d.title)) ||
+    (d?.notification_title && String(d.notification_title)) ||
+    "Notification";
+  const body =
+    (d?.body && String(d.body)) ||
+    (d?.message && String(d.message)) ||
+    (d?.order_number ? `#${String(d.order_number)}` : "");
+  self.registration.showNotification(title, {
+    body,
     icon: "/logo-sm.png",
     tag,
     renotify: false,
