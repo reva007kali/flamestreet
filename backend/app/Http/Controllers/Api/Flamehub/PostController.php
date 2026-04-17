@@ -27,6 +27,7 @@ class PostController extends Controller
                                                             ])
                                                             ->withExists([
                                                                                 'likes as liked_by_me' => fn($qq) => $qq->where('user_id', $userId),
+                                                                                'saves as saved_by_me' => fn($qq) => $qq->where('user_id', $userId),
                                                             ])
                                                             ->findOrFail($id);
 
@@ -108,6 +109,25 @@ class PostController extends Controller
                                         ]);
 
                                         return response()->json(['post' => $post], 201);
+                    }
+
+                    public function update(Request $request, int $id)
+                    {
+                                        $data = $request->validate([
+                                                            'caption' => ['nullable', 'string', 'max:2000'],
+                                        ]);
+
+                                        $userId = (int) $request->user()->getAuthIdentifier();
+                                        $post = FlamehubPost::query()->where('user_id', $userId)->findOrFail($id);
+                                        $post->caption = $data['caption'] ?? null;
+                                        $post->save();
+
+                                        $post->load([
+                                                            'user:id,username,full_name,avatar',
+                                                            'media:id,post_id,type,path,sort_order,width,height,duration_ms',
+                                        ]);
+
+                                        return response()->json(['post' => $post]);
                     }
 
                     public function destroy(Request $request, int $id)

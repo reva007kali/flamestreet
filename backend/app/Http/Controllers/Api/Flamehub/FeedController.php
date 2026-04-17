@@ -23,12 +23,14 @@ class FeedController extends Controller
                                                                                 'user:id,username,full_name,avatar',
                                                                                 'media:id,post_id,type,path,sort_order,width,height,duration_ms',
                                                             ])
+                                                            ->whereDoesntHave('hides', fn($qq) => $qq->where('user_id', $userId))
                                                             ->withCount([
                                                                                 'likes as like_count',
                                                                                 'comments as comment_count' => fn($qq) => $qq->whereNull('deleted_at'),
                                                             ])
                                                             ->withExists([
                                                                                 'likes as liked_by_me' => fn($qq) => $qq->where('user_id', $userId),
+                                                                                'saves as saved_by_me' => fn($qq) => $qq->where('user_id', $userId),
                                                             ])
                                                             ->orderByDesc('id');
 
@@ -49,4 +51,3 @@ class FeedController extends Controller
                                         ]);
                     }
 }
-

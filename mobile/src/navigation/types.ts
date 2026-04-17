@@ -11,7 +11,9 @@ export type RootStackParamList = {
   Flamehub: undefined;
   FlamehubCreate: undefined;
   FlamehubPost: { id: number };
+  FlamehubEditPost: { id: number };
   FlamehubProfile: { username: string };
+  FlamehubFollowers: { username: string };
   FlamehubSearch: undefined;
   PointsHistory: undefined;
   TrainerMembers: undefined;

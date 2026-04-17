@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   useInfiniteQuery,
   useMutation,
@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import PostCard from "@/pages/flamehub/components/PostCard";
+import { useAuthStore } from "@/store/authStore";
 
 async function shareLink(url) {
   const full = `${window.location.origin}${url}`;
@@ -54,11 +55,13 @@ function CommentItem({ c, basePath, onReply }) {
 
 export default function FlamehubPostDetail({ basePath }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { id } = useParams();
   const postId = Number(id);
   const [replyTo, setReplyTo] = useState(null);
   const [body, setBody] = useState("");
   const [liking, setLiking] = useState(false);
+  const myUsername = useAuthStore((s) => s.user?.username ?? null);
 
   const postQuery = useQuery({
     queryKey: ["flamehub", "post", postId],
@@ -141,8 +144,42 @@ export default function FlamehubPostDetail({ basePath }) {
     },
   });
 
+  const saveMutation = useMutation({
+    mutationFn: async ({ save }) => {
+      if (save) return (await api.post(`/flamehub/posts/${postId}/save`)).data;
+      return (await api.delete(`/flamehub/posts/${postId}/save`)).data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["flamehub", "post", postId] }),
+  });
+
+  const hideMutation = useMutation({
+    mutationFn: async () => (await api.post(`/flamehub/posts/${postId}/hide`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flamehub", "feed"] });
+      navigate(`${basePath}/flamehub`);
+    },
+  });
+
+  const delMutation = useMutation({
+    mutationFn: async () => (await api.delete(`/flamehub/posts/${postId}`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flamehub", "feed"] });
+      navigate(`${basePath}/flamehub`);
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async ({ caption }) =>
+      (await api.put(`/flamehub/posts/${postId}`, { caption })).data?.post,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flamehub", "post", postId] });
+      qc.invalidateQueries({ queryKey: ["flamehub", "feed"] });
+    },
+  });
+
   const post = postQuery.data;
   const url = `${basePath}/flamehub/p/${postId}`;
+  const isOwner = Boolean(myUsername && post?.user?.username && myUsername === post.user.username);
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -174,6 +211,19 @@ export default function FlamehubPostDetail({ basePath }) {
           liking={liking}
           onToggleLike={() => toggleLike.mutate({ like: !post.liked_by_me })}
           onShare={() => shareLink(url)}
+          saving={saveMutation.isPending}
+          onToggleSave={() => saveMutation.mutate({ save: !post.saved_by_me })}
+          isOwner={isOwner}
+          onHide={() => hideMutation.mutate()}
+          onDelete={() => {
+            if (!window.confirm("Delete this post?")) return;
+            delMutation.mutate();
+          }}
+          onEdit={() => {
+            const next = window.prompt("Edit caption", post.caption ?? "");
+            if (next == null) return;
+            editMutation.mutate({ caption: next.trim() || null });
+          }}
         />
       ) : null}
 

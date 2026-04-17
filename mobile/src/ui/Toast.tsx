@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 18,
+    top: 50,
     paddingHorizontal: 14,
   },
   toast: {

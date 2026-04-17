@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { toPublicUrl } from "@/lib/assets";
 import { Heart, MessageCircle, Send, MoreHorizontal, Bookmark } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 function fmtTimeAgo(v) {
   if (!v) return "";
@@ -84,9 +85,28 @@ export default function PostCard({
   onOpenComments,
   liking,
   onShare,
+  onToggleSave,
+  onEdit,
+  onHide,
+  onDelete,
+  isOwner,
+  saving,
 }) {
   const user = post.user;
   const postUrl = `${basePath}/flamehub/p/${post.id}`;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e) => {
+      if (!menuRef.current) return;
+      if (menuRef.current.contains(e.target)) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
 
   return (
     <div className="bg-zinc-950 border-b border-zinc-900 lg:border lg:border-zinc-900 lg:rounded-2xl lg:mb-4 overflow-hidden">
@@ -108,9 +128,53 @@ export default function PostCard({
             </span>
           </div>
         </div>
-        <button className="text-zinc-500 hover:text-white transition-colors">
-          <MoreHorizontal size={20} />
-        </button>
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="text-zinc-500 hover:text-white transition-colors"
+          >
+            <MoreHorizontal size={20} />
+          </button>
+          {menuOpen ? (
+            <div className="absolute right-0 top-8 z-20 w-40 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 shadow-lg shadow-black/30">
+              {isOwner ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEdit?.(post);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-900"
+                >
+                  Edit
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onHide?.(post);
+                }}
+                className="w-full px-3 py-2 text-left text-sm font-semibold text-zinc-200 hover:bg-zinc-900"
+              >
+                Hide
+              </button>
+              {isOwner ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete?.(post);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm font-semibold text-red-300 hover:bg-zinc-900"
+                >
+                  Delete
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Media: Full Width Edge-to-Edge */}
@@ -139,8 +203,16 @@ export default function PostCard({
               <Send size={24} className="text-white" />
             </button>
           </div>
-          <button className="text-white">
-            <Bookmark size={24} />
+          <button
+            type="button"
+            onClick={() => onToggleSave?.(post)}
+            disabled={saving}
+            className={["text-white", saving ? "opacity-50" : ""].join(" ")}
+          >
+            <Bookmark
+              size={24}
+              className={post.saved_by_me ? "fill-emerald-400 text-emerald-400" : "text-white"}
+            />
           </button>
         </div>
 

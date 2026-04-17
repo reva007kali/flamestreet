@@ -60,16 +60,16 @@ class PromoBannerController extends Controller
     public function uploadImage(Request $request, int $id)
     {
         $request->validate([
-            'image' => ['required', 'file', 'image', 'max:5120'],
+            'image' => ['required', 'file', 'image', 'max:10240'],
         ]);
 
         $banner = PromoBanner::query()->findOrFail($id);
         $file = $request->file('image');
-        $filename = (string) Str::uuid().'.'.$file->getClientOriginalExtension();
+        $filename = (string) Str::uuid() . '.' . $file->getClientOriginalExtension();
         $dir = public_path('uploads/promo-banners');
         File::ensureDirectoryExists($dir);
         $file->move($dir, $filename);
-        $path = 'uploads/promo-banners/'.$filename;
+        $path = 'uploads/promo-banners/' . $filename;
 
         if ($banner->image) {
             Storage::disk('public')->delete($banner->image);
@@ -109,4 +109,3 @@ class PromoBannerController extends Controller
         ]);
     }
 }
-

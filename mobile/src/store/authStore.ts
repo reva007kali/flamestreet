@@ -10,6 +10,7 @@ export type User = {
   phone_number?: string | null;
   email?: string | null;
   avatar?: string | null;
+  flamehub_bio?: string | null;
   is_active?: boolean;
   roles?: Role[];
   trainer_profile?: {

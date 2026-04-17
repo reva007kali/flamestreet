@@ -26,6 +26,9 @@ import AppFlatList from "../../ui/AppFlatList";
 import Screen from "../../ui/Screen";
 import { theme } from "../../ui/theme";
 import FlamehubCommentsSheet from "./FlamehubCommentsSheet";
+import { useAuthStore } from "../../store/authStore";
+import ActionSheet from "../../ui/ActionSheet";
+import ConfirmSheet from "../../ui/ConfirmSheet";
 
 type UserBrief = {
   id: number;
@@ -50,6 +53,7 @@ type Post = {
   like_count?: number;
   comment_count?: number;
   liked_by_me?: boolean;
+  saved_by_me?: boolean;
 };
 
 type VideoPost = Post & { videoSrc: string };
@@ -81,6 +85,14 @@ function VideoTile({
     else player.pause();
   }, [active, player]);
 
+  useEffect(() => {
+    return () => {
+      try {
+        player.pause();
+      } catch {}
+    };
+  }, [player]);
+
   return (
     <Pressable onPress={onPress} style={{ width: "100%", height: "100%" }}>
       <VideoView
@@ -97,6 +109,7 @@ export default function FlamehubFeedScreen() {
   const navigation = useNavigation<any>();
   const qc = useQueryClient();
   const { width, height } = useWindowDimensions();
+  const myId = useAuthStore((s) => s.user?.id ?? null);
   const [activePostId, setActivePostId] = useState<number | null>(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [activeVideoPostId, setActiveVideoPostId] = useState<number | null>(
@@ -105,6 +118,8 @@ export default function FlamehubFeedScreen() {
   const [mutedByPost, setMutedByPost] = useState<Record<number, boolean>>({});
   const [reelsOpen, setReelsOpen] = useState(false);
   const [reelsIndex, setReelsIndex] = useState(0);
+  const [menuPost, setMenuPost] = useState<Post | null>(null);
+  const [deletePost, setDeletePost] = useState<Post | null>(null);
   const feedListRef = useRef<any>(null);
   const feedScrollYRef = useRef(0);
   const savedFeedScrollYRef = useRef(0);
@@ -131,6 +146,15 @@ export default function FlamehubFeedScreen() {
     });
     return unsubscribe;
   }, [navigation, qc]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("blur", () => {
+      setActiveVideoPostId(null);
+      setReelsOpen(false);
+      setCommentsOpen(false);
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const likeMutation = useMutation({
     mutationFn: async ({ postId, like }: { postId: number; like: boolean }) => {
@@ -168,6 +192,37 @@ export default function FlamehubFeedScreen() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["flamehub", "feed"] });
     },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ postId, save }: { postId: number; save: boolean }) => {
+      if (save) return (await api.post(`/flamehub/posts/${postId}/save`)).data;
+      return (await api.delete(`/flamehub/posts/${postId}/save`)).data;
+    },
+    onMutate: async ({ postId, save }) => {
+      qc.setQueriesData({ queryKey: ["flamehub", "feed"] }, (old: any) => {
+        if (!old?.data) return old;
+        return {
+          ...old,
+          data: old.data.map((p: any) =>
+            p.id === postId ? { ...p, saved_by_me: save } : p,
+          ),
+        };
+      });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["flamehub", "feed"] }),
+  });
+
+  const hideMutation = useMutation({
+    mutationFn: async ({ postId }: { postId: number }) =>
+      (await api.post(`/flamehub/posts/${postId}/hide`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["flamehub", "feed"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async ({ postId }: { postId: number }) =>
+      (await api.delete(`/flamehub/posts/${postId}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["flamehub", "feed"] }),
   });
 
   const items = useMemo(
@@ -521,11 +576,31 @@ export default function FlamehubFeedScreen() {
                   />
                 </Pressable>
                 <View style={{ flex: 1 }} />
-                <Ionicons
-                  name="bookmark-outline"
-                  size={24}
-                  color={theme.colors.text}
-                />
+                <Pressable
+                  onPress={() =>
+                    saveMutation.mutate({
+                      postId: item.id,
+                      save: !Boolean(item.saved_by_me),
+                    })
+                  }
+                >
+                  <Ionicons
+                    name={item.saved_by_me ? "bookmark" : "bookmark-outline"}
+                    size={24}
+                    color={item.saved_by_me ? theme.colors.green : theme.colors.text}
+                  />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setMenuPost(item);
+                  }}
+                >
+                  <Ionicons
+                    name="ellipsis-horizontal"
+                    size={22}
+                    color={theme.colors.text}
+                  />
+                </Pressable>
               </View>
 
               {/* Caption & Metadata */}
@@ -591,6 +666,53 @@ export default function FlamehubFeedScreen() {
         visible={commentsOpen}
         postId={activePostId}
         onClose={() => setCommentsOpen(false)}
+      />
+
+      <ActionSheet
+        open={Boolean(menuPost)}
+        title="Post"
+        onClose={() => setMenuPost(null)}
+        items={
+          menuPost
+            ? [
+                ...(myId && menuPost.user?.id === myId
+                  ? [
+                      {
+                        key: "edit",
+                        label: "Edit",
+                        onPress: () =>
+                          navigation.navigate("FlamehubEditPost", { id: menuPost.id }),
+                      },
+                      {
+                        key: "delete",
+                        label: "Delete",
+                        destructive: true,
+                        onPress: () => setDeletePost(menuPost),
+                      },
+                    ]
+                  : []),
+                {
+                  key: "hide",
+                  label: "Hide",
+                  onPress: () => hideMutation.mutate({ postId: menuPost.id }),
+                },
+              ]
+            : []
+        }
+      />
+
+      <ConfirmSheet
+        open={Boolean(deletePost)}
+        title="Delete post?"
+        message="This cannot be undone."
+        confirmText="Delete"
+        destructive
+        onClose={() => setDeletePost(null)}
+        onConfirm={() => {
+          if (!deletePost) return;
+          deleteMutation.mutate({ postId: deletePost.id });
+          setDeletePost(null);
+        }}
       />
 
       {reelsOpen ? (

@@ -49,7 +49,13 @@ export default function FlamehubSearchScreen() {
             alignItems: "center",
           }}
         >
-          <Pressable onPress={() => navigation.goBack()}>
+          <Pressable
+            onPress={() => {
+              const tabs = navigation.getParent?.("FlamehubTabs");
+              if (tabs?.navigate) tabs.navigate("Hub");
+              else navigation.goBack();
+            }}
+          >
             <Text style={{ color: theme.colors.green, fontWeight: "900" }}>
               Back
             </Text>

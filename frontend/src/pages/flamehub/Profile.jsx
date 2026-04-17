@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import { toPublicUrl } from "@/lib/assets";
 import { useAuthStore } from "@/store/authStore";
@@ -64,6 +69,7 @@ export default function FlamehubProfile({ basePath }) {
   const qc = useQueryClient();
   const { username } = useParams();
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState("posts");
   const myUsername = useAuthStore((s) => s.user?.username ?? null);
 
   const profileQuery = useQuery({
@@ -106,6 +112,24 @@ export default function FlamehubProfile({ basePath }) {
     myUsername && user?.username && myUsername === user.username,
   );
 
+  const savedQuery = useInfiniteQuery({
+    queryKey: ["flamehub", "saved"],
+    enabled: Boolean(isMe && tab === "saved"),
+    initialPageParam: null,
+    queryFn: async ({ pageParam }) => {
+      const r = await api.get("/flamehub/saved", { params: { cursor: pageParam } });
+      return r.data;
+    },
+    getNextPageParam: (lastPage) => lastPage?.next_cursor ?? null,
+  });
+
+  const savedPosts = useMemo(() => {
+    const pages = savedQuery.data?.pages ?? [];
+    return pages.flatMap((p) => p?.data ?? []);
+  }, [savedQuery.data]);
+
+  const gridPosts = tab === "saved" ? savedPosts : posts;
+
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div className="flex items-center justify-between gap-3">
@@ -143,6 +167,11 @@ export default function FlamehubProfile({ basePath }) {
                 {user.full_name ? (
                   <div className="truncate text-sm text-zinc-300/85">
                     {user.full_name}
+                  </div>
+                ) : null}
+                {user.flamehub_bio ? (
+                  <div className="mt-2 whitespace-pre-wrap text-sm text-zinc-300/85">
+                    {user.flamehub_bio}
                   </div>
                 ) : null}
                 <div className="mt-2 flex items-center gap-4 text-xs text-zinc-400">
@@ -191,13 +220,58 @@ export default function FlamehubProfile({ basePath }) {
         </div>
       ) : null}
 
+      {isMe ? (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTab("posts")}
+            className={[
+              "rounded-xl border px-4 py-2 text-sm font-semibold transition",
+              tab === "posts"
+                ? "border-emerald-400/35 bg-emerald-400/10 text-emerald-200"
+                : "border-zinc-800/80 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700",
+            ].join(" ")}
+          >
+            Posts
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("saved")}
+            className={[
+              "rounded-xl border px-4 py-2 text-sm font-semibold transition",
+              tab === "saved"
+                ? "border-emerald-400/35 bg-emerald-400/10 text-emerald-200"
+                : "border-zinc-800/80 bg-zinc-900/40 text-zinc-200 hover:border-zinc-700",
+            ].join(" ")}
+          >
+            Saved
+          </button>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-3 gap-1.5">
-        {posts.map((p) => (
+        {gridPosts.map((p) => (
           <Thumb key={p.id} post={p} basePath={basePath} />
         ))}
       </div>
-      {user && !posts.length ? (
+      {user && tab === "posts" && !posts.length ? (
         <div className="text-sm text-zinc-400">Belum ada post.</div>
+      ) : null}
+      {isMe && tab === "saved" && !savedQuery.isLoading && !savedPosts.length ? (
+        <div className="text-sm text-zinc-400">Belum ada saved post.</div>
+      ) : null}
+
+      {isMe && tab === "saved" && savedQuery.hasNextPage ? (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-4 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-700 disabled:opacity-50"
+            onClick={() => savedQuery.fetchNextPage()}
+            disabled={savedQuery.isFetchingNextPage}
+          >
+            {savedQuery.isFetchingNextPage ? "Loading…" : "Load more"}
+          </button>
+        </div>
       ) : null}
     </div>
   );

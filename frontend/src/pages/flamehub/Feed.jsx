@@ -8,7 +8,8 @@ import {
 import { api } from "@/lib/axios";
 import PostCard from "@/pages/flamehub/components/PostCard";
 import CommentsSheet from "@/pages/flamehub/components/CommentsSheet";
-import { Plus, Search, Loader2, Sparkles } from "lucide-react";
+import { Plus, Search, Loader2 } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
 
 async function shareLink(url) {
   const full = `${window.location.origin}${url}`;
@@ -30,8 +31,10 @@ async function shareLink(url) {
 export default function FlamehubFeed({ basePath }) {
   const qc = useQueryClient();
   const [likingId, setLikingId] = useState(null);
+  const [savingId, setSavingId] = useState(null);
   const [activePostId, setActivePostId] = useState(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const myUsername = useAuthStore((s) => s.user?.username ?? null);
 
   const feedQuery = useInfiniteQuery({
     queryKey: ["flamehub", "feed"],
@@ -105,6 +108,106 @@ export default function FlamehubFeed({ basePath }) {
     },
   });
 
+  const saveMutation = useMutation({
+    mutationFn: async ({ postId, save }) => {
+      if (save) return (await api.post(`/flamehub/posts/${postId}/save`)).data;
+      return (await api.delete(`/flamehub/posts/${postId}/save`)).data;
+    },
+    onMutate: async ({ postId, save }) => {
+      setSavingId(postId);
+      await qc.cancelQueries({ queryKey: ["flamehub", "feed"] });
+      const prev = qc.getQueryData(["flamehub", "feed"]);
+      qc.setQueryData(["flamehub", "feed"], (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((p) => ({
+            ...p,
+            data: (p?.data ?? []).map((it) => {
+              if (it.id !== postId) return it;
+              return { ...it, saved_by_me: Boolean(save) };
+            }),
+          })),
+        };
+      });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["flamehub", "feed"], ctx.prev);
+    },
+    onSettled: () => {
+      setSavingId(null);
+      qc.invalidateQueries({ queryKey: ["flamehub", "feed"] });
+    },
+  });
+
+  const hideMutation = useMutation({
+    mutationFn: async ({ postId }) =>
+      (await api.post(`/flamehub/posts/${postId}/hide`)).data,
+    onMutate: async ({ postId }) => {
+      await qc.cancelQueries({ queryKey: ["flamehub", "feed"] });
+      const prev = qc.getQueryData(["flamehub", "feed"]);
+      qc.setQueryData(["flamehub", "feed"], (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((p) => ({
+            ...p,
+            data: (p?.data ?? []).filter((it) => it.id !== postId),
+          })),
+        };
+      });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["flamehub", "feed"], ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["flamehub", "feed"] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async ({ postId }) =>
+      (await api.delete(`/flamehub/posts/${postId}`)).data,
+    onMutate: async ({ postId }) => {
+      await qc.cancelQueries({ queryKey: ["flamehub", "feed"] });
+      const prev = qc.getQueryData(["flamehub", "feed"]);
+      qc.setQueryData(["flamehub", "feed"], (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((p) => ({
+            ...p,
+            data: (p?.data ?? []).filter((it) => it.id !== postId),
+          })),
+        };
+      });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["flamehub", "feed"], ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["flamehub", "feed"] }),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async ({ postId, caption }) =>
+      (await api.put(`/flamehub/posts/${postId}`, { caption })).data?.post,
+    onSuccess: (post) => {
+      if (!post?.id) return;
+      qc.setQueryData(["flamehub", "feed"], (old) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((p) => ({
+            ...p,
+            data: (p?.data ?? []).map((it) => (it.id === post.id ? { ...it, caption: post.caption } : it)),
+          })),
+        };
+      });
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["flamehub", "feed"] }),
+  });
+
   return (
     <div className="mx-auto max-w-xl pb-20">
       {/* Header Statis / App Bar Style */}
@@ -163,14 +266,29 @@ export default function FlamehubFeed({ basePath }) {
               post={p}
               basePath={basePath}
               liking={likingId === p.id}
+              saving={savingId === p.id}
+              isOwner={Boolean(myUsername && p?.user?.username && myUsername === p.user.username)}
               onToggleLike={(post) =>
                 likeMutation.mutate({ postId: post.id, like: !post.liked_by_me })
+              }
+              onToggleSave={(post) =>
+                saveMutation.mutate({ postId: post.id, save: !post.saved_by_me })
               }
               onOpenComments={(post) => {
                 setActivePostId(post.id);
                 setCommentsOpen(true);
               }}
               onShare={(url) => shareLink(url)}
+              onHide={(post) => hideMutation.mutate({ postId: post.id })}
+              onDelete={(post) => {
+                if (!window.confirm("Delete this post?")) return;
+                deleteMutation.mutate({ postId: post.id });
+              }}
+              onEdit={(post) => {
+                const next = window.prompt("Edit caption", post.caption ?? "");
+                if (next == null) return;
+                editMutation.mutate({ postId: post.id, caption: next.trim() || null });
+              }}
             />
             {/* Divider ala Threads/IG */}
             <div className="mx-auto h-[1px] w-[95%] bg-zinc-900 group-last:hidden" />

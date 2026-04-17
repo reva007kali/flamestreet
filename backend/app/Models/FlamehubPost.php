@@ -34,5 +34,14 @@ class FlamehubPost extends Model
                     {
                                         return $this->hasMany(FlamehubPostLike::class, 'post_id');
                     }
-}
 
+    public function saves()
+    {
+                        return $this->hasMany(FlamehubPostSave::class, 'post_id');
+    }
+
+    public function hides()
+    {
+                        return $this->hasMany(FlamehubPostHide::class, 'post_id');
+    }
+}

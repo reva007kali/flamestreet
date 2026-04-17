@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View, Image, Pressable } from "react-native";
 import * as WebBrowser from "expo-web-browser";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { api } from "../lib/api";
 import { RootStackParamList } from "../navigation/types";
+import { useAuthStore } from "../store/authStore";
 import Button from "../ui/Button";
 import Card from "../ui/Card";
 import Screen from "../ui/Screen";
@@ -43,11 +46,15 @@ type Order = {
 
 export default function OrderDetailScreen() {
   const route = useRoute<OrderDetailRoute>();
+  const user = useAuthStore((s) => s.user);
   const [paymentUrl, setPaymentUrl] = useState<string>("");
   const [tx, setTx] = useState<any>(null);
   const { refreshing, onRefresh } = usePullToRefresh();
   const toast = useToast();
   const prevPaymentStatus = useRef<string | null>(null);
+
+  // Cek apakah user adalah trainer
+  const isTrainer = (user?.roles ?? []).includes("trainer");
 
   const query = useQuery<Order>({
     queryKey: ["order", route.params.orderNumber],
@@ -90,200 +97,184 @@ export default function OrderDetailScreen() {
   }
 
   useEffect(() => {
-    if (!orderId || !isDoku) return;
-    if (!isUnpaid) return;
+    if (!orderId || !isDoku || !isUnpaid) return;
     ensurePaymentUrl();
   }, [orderId, isDoku, isUnpaid]);
 
-  useEffect(() => {
-    if (!orderId || !isDoku) return;
-    if (!isUnpaid) return;
+  // Status Badge Logic
+  const getStatusStyle = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'completed': return { color: theme.colors.green, bg: 'rgba(34, 197, 94, 0.1)' };
+      case 'cancelled': return { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)' };
+      case 'pending': return { color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.1)' };
+      default: return { color: theme.colors.muted, bg: '#222' };
+    }
+  };
 
-    const timer = setInterval(async () => {
-      try {
-        const r = await api.get(`/orders/${orderId}/doku/checkout/status`);
-        if (r.data?.transaction) setTx(r.data.transaction);
-        if (r.data?.payment_status === "paid") query.refetch();
-      } catch {}
-    }, 6000);
-
-    return () => clearInterval(timer);
-  }, [orderId, isDoku, isUnpaid, query]);
+  const statusInfo = getStatusStyle(order?.status ?? '');
 
   return (
     <Screen>
       <ScrollView
-        contentContainerStyle={{
-          padding: theme.spacing.md,
-          gap: theme.spacing.md,
-        }}
-        refreshControl={
-          <RefreshControl
-            tintColor={theme.colors.text}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-          />
-        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 20, gap: 20, paddingBottom: 100 }}
+        refreshControl={<RefreshControl tintColor={theme.colors.green} refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {query.isLoading ? (
-          <Text style={{ color: theme.colors.muted }}>Loading…</Text>
-        ) : null}
-        {order ? (
+        {query.isLoading && <Text style={{ color: theme.colors.muted }}>Loading detail...</Text>}
+
+        {order && (
           <>
-            <Card style={{ gap: 6 }}>
-              <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: "900" }}>
-                #{order.order_number}
+            {/* -- HEADER: STATUS & ORDER NO -- */}
+            <View style={{ alignItems: 'center', gap: 10, paddingVertical: 10 }}>
+              <View style={{ 
+                backgroundColor: statusInfo.bg, 
+                paddingHorizontal: 16, 
+                paddingVertical: 6, 
+                borderRadius: 99,
+                borderWidth: 1,
+                borderColor: statusInfo.color + '20'
+              }}>
+                <Text style={{ color: statusInfo.color, fontWeight: '900', fontSize: 12, textTransform: 'uppercase' }}>
+                  {order.status}
+                </Text>
+              </View>
+              <Text style={{ color: '#fff', fontSize: 28, fontWeight: '900' }}>#{order.order_number}</Text>
+              <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
+                {new Date(order.created_at!).toLocaleString("id-ID", { dateStyle: 'medium', timeStyle: 'short' })}
               </Text>
-              <Text style={{ color: theme.colors.muted }}>
-                {order.status ?? "—"} • {order.payment_status ?? "—"}
-                {order.payment_method ? ` • ${order.payment_method}` : ""}
-              </Text>
-              {order.created_at ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Created: {new Date(order.created_at).toLocaleString("id-ID")}
-                </Text>
-              ) : null}
-              {order.delivered_at ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Delivered: {new Date(order.delivered_at).toLocaleString("id-ID")}
-                </Text>
-              ) : null}
-              {order.cancelled_at ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Cancelled: {new Date(order.cancelled_at).toLocaleString("id-ID")}
-                </Text>
-              ) : null}
-              {order.cancelled_reason ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Reason: {order.cancelled_reason}
-                </Text>
-              ) : null}
-            </Card>
+            </View>
 
-            <Card style={{ gap: 8 }}>
-              <Text style={{ color: theme.colors.text, fontWeight: "900" }}>Summary</Text>
-              <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                Subtotal: Rp {Number(order.subtotal ?? 0).toLocaleString("id-ID")}
-              </Text>
-              <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                Discount: Rp {Number(order.discount_amount ?? 0).toLocaleString("id-ID")}
-              </Text>
-              <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                Delivery fee: Rp {Number(order.delivery_fee ?? 0).toLocaleString("id-ID")}
-              </Text>
-              <Text style={{ color: theme.colors.text, fontWeight: "900" }}>
-                Total: Rp {Number(order.total_amount ?? 0).toLocaleString("id-ID")}
-              </Text>
-
-              {order.points_used ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Points used: {Number(order.points_used ?? 0).toLocaleString("id-ID")} fp
-                  {order.points_used_source ? ` (${order.points_used_source})` : ""}
-                </Text>
-              ) : null}
-              {order.points_earned_member ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Points earned (member): {Number(order.points_earned_member ?? 0).toLocaleString("id-ID")} fp
-                </Text>
-              ) : null}
-              {order.points_earned_trainer ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Points earned (trainer): {Number(order.points_earned_trainer ?? 0).toLocaleString("id-ID")} fp
-                </Text>
-              ) : null}
-
-              {isDoku && isUnpaid ? (
-                <View style={{ gap: 10, marginTop: 6 }}>
-                  <Button
-                    onPress={async () => {
-                      if (!paymentUrl) await ensurePaymentUrl();
-                      if (paymentUrl) await WebBrowser.openBrowserAsync(paymentUrl);
-                    }}
-                    disabled={!orderId}
-                  >
-                    Pay now
-                  </Button>
-                  <Button variant="secondary" onPress={ensurePaymentUrl} disabled={!orderId}>
-                    Refresh payment link
-                  </Button>
-                  {tx?.reference_no ? (
-                    <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                      Token: {String(tx.reference_no)}
-                    </Text>
-                  ) : null}
+            {/* -- ACTION: PAYMENT BUTTON (UNPAID ONLY) -- */}
+            {isDoku && isUnpaid && (
+              <Card style={{ padding: 16, backgroundColor: '#1a1a1a', borderRadius: 24, gap: 12, borderWidth: 1, borderColor: theme.colors.green + '30' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                   <Ionicons name="card" size={24} color={theme.colors.green} />
+                   <View>
+                      <Text style={{ color: '#fff', fontWeight: '800' }}>Waiting for Payment</Text>
+                      <Text style={{ color: theme.colors.muted, fontSize: 12 }}>Please complete your transaction via DOKU</Text>
+                   </View>
                 </View>
-              ) : null}
-            </Card>
-
-            <Card style={{ gap: 10 }}>
-              <Text style={{ color: theme.colors.text, fontWeight: "900" }}>Delivery</Text>
-              {order.gym?.gym_name ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Gym: {order.gym.gym_name}
-                </Text>
-              ) : null}
-              {order.delivery_address ? (
-                <Text style={{ color: theme.colors.text }}>{order.delivery_address}</Text>
-              ) : null}
-              {order.delivery_notes ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Notes: {order.delivery_notes}
-                </Text>
-              ) : null}
-              {order.recipient_name || order.recipient_phone ? (
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Recipient: {[order.recipient_name, order.recipient_phone].filter(Boolean).join(" • ")}
-                </Text>
-              ) : null}
-            </Card>
-
-            <Card style={{ gap: 10 }}>
-              <Text style={{ color: theme.colors.text, fontWeight: "900" }}>Items</Text>
-              {(order.items ?? []).map((it: any, idx: number) => (
-                <View
-                  key={`${it.id ?? idx}`}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    borderRadius: theme.radius.md,
-                    padding: 12,
-                    gap: 6,
+                <Button 
+                  onPress={async () => {
+                    if (!paymentUrl) await ensurePaymentUrl();
+                    if (paymentUrl) await WebBrowser.openBrowserAsync(paymentUrl);
                   }}
                 >
-                  <Text style={{ color: theme.colors.text, fontWeight: "900" }} numberOfLines={1}>
-                    {it.product_name ?? "—"}
-                  </Text>
-                  <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                    {Number(it.quantity ?? 0)} × Rp {Number(it.product_price ?? 0).toLocaleString("id-ID")}
-                  </Text>
-                  {(it.modifier_options ?? []).length ? (
-                    <View style={{ gap: 4 }}>
-                      {(it.modifier_options ?? []).map((m: any, j: number) => (
-                        <Text key={`${it.id ?? idx}:${j}`} style={{ color: theme.colors.muted, fontSize: 12 }}>
-                          {m.modifier_name}: {m.option_name}
-                          {Number(m.additional_price ?? 0) > 0
-                            ? ` (+Rp ${Number(m.additional_price).toLocaleString("id-ID")})`
-                            : ""}
-                        </Text>
-                      ))}
-                    </View>
-                  ) : null}
-                  {it.item_notes ? (
-                    <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                      Notes: {it.item_notes}
-                    </Text>
-                  ) : null}
-                  <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                    Subtotal: Rp {Number(it.subtotal ?? 0).toLocaleString("id-ID")}
-                  </Text>
+                  Pay Now
+                </Button>
+                <Pressable onPress={ensurePaymentUrl} style={{ alignSelf: 'center' }}>
+                    <Text style={{ color: theme.colors.muted, fontSize: 12, textDecorationLine: 'underline' }}>Refresh Link</Text>
+                </Pressable>
+              </Card>
+            )}
+
+            {/* -- ITEMS LIST -- */}
+            <View style={{ gap: 12 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.4)', fontWeight: '800', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Items Ordered</Text>
+              {order.items?.map((it, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', gap: 14, backgroundColor: '#151515', padding: 14, borderRadius: 20 }}>
+                  <View style={{ width: 50, height: 50, borderRadius: 12, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="fast-food" size={24} color="#222" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>{it.product_name}</Text>
+                    <Text style={{ color: theme.colors.muted, fontSize: 12, marginTop: 2 }}>{it.quantity}x • Rp {Number(it.product_price).toLocaleString('id-ID')}</Text>
+                    {it.modifier_options?.map((m: any, j: number) => (
+                      <Text key={j} style={{ color: theme.colors.green, fontSize: 11, fontWeight: '700' }}>+ {m.option_name}</Text>
+                    ))}
+                  </View>
+                  <Text style={{ color: '#fff', fontWeight: '800' }}>Rp {Number(it.subtotal).toLocaleString('id-ID')}</Text>
                 </View>
               ))}
-              {!(order.items ?? []).length ? (
-                <Text style={{ color: theme.colors.muted }}>No items.</Text>
-              ) : null}
-            </Card>
+            </View>
+
+            {/* -- DELIVERY INFO -- */}
+            <View style={{ gap: 12 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.4)', fontWeight: '800', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Delivery Info</Text>
+              <Card style={{ padding: 16, borderRadius: 24, backgroundColor: '#151515', gap: 12 }}>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                   <Ionicons name="location" size={20} color={theme.colors.green} />
+                   <View style={{ flex: 1 }}>
+                      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 14 }}>{order.recipient_name ?? 'Recipient'}</Text>
+                      <Text style={{ color: theme.colors.muted, fontSize: 13, marginTop: 4 }}>{order.delivery_address}</Text>
+                      {order.delivery_notes && (
+                        <View style={{ marginTop: 8, padding: 8, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                           <Text style={{ color: theme.colors.muted, fontSize: 11 }}>Note: {order.delivery_notes}</Text>
+                        </View>
+                      )}
+                   </View>
+                </View>
+                {order.gym && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', paddingTop: 12 }}>
+                    <Ionicons name="business" size={16} color={theme.colors.muted} />
+                    <Text style={{ color: theme.colors.muted, fontSize: 12 }}>Sent via {order.gym.gym_name}</Text>
+                  </View>
+                )}
+              </Card>
+            </View>
+
+            {/* -- PAYMENT SUMMARY & POINTS -- */}
+            <View style={{ gap: 12 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.4)', fontWeight: '800', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Payment Summary</Text>
+              <Card style={{ padding: 20, borderRadius: 24, backgroundColor: '#151515', gap: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: theme.colors.muted }}>Subtotal</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Rp {Number(order.subtotal).toLocaleString('id-ID')}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: theme.colors.muted }}>Delivery Fee</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Rp {Number(order.delivery_fee).toLocaleString('id-ID')}</Text>
+                </View>
+                {Number(order.discount_amount) > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: theme.colors.muted }}>Discount</Text>
+                    <Text style={{ color: '#ef4444', fontWeight: '700' }}>- Rp {Number(order.discount_amount).toLocaleString('id-ID')}</Text>
+                  </View>
+                )}
+                <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginVertical: 6 }} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 16 }}>Total</Text>
+                  <Text style={{ color: theme.colors.green, fontWeight: '900', fontSize: 20 }}>Rp {Number(order.total_amount).toLocaleString('id-ID')}</Text>
+                </View>
+
+                {/* Points Section */}
+                <View style={{ marginTop: 10, padding: 12, backgroundColor: 'rgba(34, 197, 94, 0.05)', borderRadius: 16, gap: 6 }}>
+                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                      <Ionicons name="flash" size={14} color={theme.colors.green} />
+                      <Text style={{ color: theme.colors.green, fontWeight: '900', fontSize: 11, textTransform: 'uppercase' }}>Points Transaction</Text>
+                   </View>
+                   {order.points_used ? (
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Points Used</Text>
+                        <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>{Number(order.points_used).toLocaleString('id-ID')} fp</Text>
+                      </View>
+                   ) : null}
+                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Earned (Member)</Text>
+                      <Text style={{ color: theme.colors.green, fontSize: 12, fontWeight: '700' }}>+ {Number(order.points_earned_member ?? 0).toLocaleString('id-ID')} fp</Text>
+                   </View>
+                   
+                   {/* HIDE TRAINER POINTS IF NOT TRAINER */}
+                   {isTrainer && order.points_earned_trainer ? (
+                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)', marginTop: 4, paddingTop: 4 }}>
+                        <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '700' }}>Earned (Trainer Only)</Text>
+                        <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '700' }}>+ {Number(order.points_earned_trainer).toLocaleString('id-ID')} fp</Text>
+                     </View>
+                   ) : null}
+                </View>
+              </Card>
+            </View>
+
+            {/* -- CANCELLATION INFO (IF ANY) -- */}
+            {order.cancelled_at && (
+              <Card style={{ padding: 16, backgroundColor: 'rgba(239, 68, 68, 0.05)', borderColor: '#ef444430', borderWidth: 1, borderRadius: 20 }}>
+                <Text style={{ color: '#ef4444', fontWeight: '900', marginBottom: 4 }}>Cancellation Detail</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Reason: {order.cancelled_reason ?? 'No reason provided'}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 4 }}>Date: {new Date(order.cancelled_at).toLocaleString('id-ID')}</Text>
+              </Card>
+            )}
           </>
-        ) : null}
+        )}
       </ScrollView>
     </Screen>
   );

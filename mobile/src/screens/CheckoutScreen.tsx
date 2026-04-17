@@ -26,6 +26,8 @@ import { usePullToRefresh } from "../lib/usePullToRefresh";
 import { toPublicUrl } from "../lib/assets";
 import { useToast } from "../ui/Toast";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type PaymentMethod = { id: number; code: string; name: string };
 
@@ -36,6 +38,7 @@ const EMPTY_ROLES: readonly string[] = [];
 export default function CheckoutScreen() {
   const navigation = useNavigation<any>();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
   const cartItems = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clear);
   const total = useCartStore((s) => s.total);
@@ -54,6 +57,7 @@ export default function CheckoutScreen() {
   const roles = useAuthStore((s) => s.user?.roles ?? EMPTY_ROLES);
   const isTrainer = roles.includes("trainer");
 
+  // -- Queries (Logic tetap) --
   const pmQuery = useQuery({
     queryKey: ["payment-methods"],
     queryFn: async (): Promise<PaymentMethod[]> => {
@@ -134,10 +138,10 @@ export default function CheckoutScreen() {
     }
   }, [isTrainer, loadedLast, deliveryAddress, gymId, gymsQuery.data]);
 
-  const pmOptions = useMemo(() => {
-    const list = pmQuery.data ?? [];
-    return list.filter((m) => m.code);
-  }, [pmQuery.data]);
+  const pmOptions = useMemo(
+    () => (pmQuery.data ?? []).filter((m) => m.code),
+    [pmQuery.data],
+  );
 
   const createOrder = useMutation({
     mutationFn: async () => {
@@ -148,7 +152,7 @@ export default function CheckoutScreen() {
         recipient_name: recipientName,
         recipient_phone: recipientPhone,
         payment_method: paymentMethod,
-        delivery_fee: gymId ? 0 : 0,
+        delivery_fee: 0,
         discount_amount: 0,
         items: cartItems.map((i) => ({
           product_id: i.product_id,
@@ -162,14 +166,10 @@ export default function CheckoutScreen() {
     },
     onSuccess: async (order) => {
       try {
-        if (deliveryAddress) {
+        if (deliveryAddress)
           await SecureStore.setItemAsync(LAST_ADDRESS_KEY, deliveryAddress);
-        }
-        if (gymId) {
-          await SecureStore.setItemAsync(LAST_GYM_KEY, String(gymId));
-        } else {
-          await SecureStore.deleteItemAsync(LAST_GYM_KEY);
-        }
+        if (gymId) await SecureStore.setItemAsync(LAST_GYM_KEY, String(gymId));
+        else await SecureStore.deleteItemAsync(LAST_GYM_KEY);
       } catch {}
       clearCart();
       if (paymentMethod === "flame-points") {
@@ -186,9 +186,7 @@ export default function CheckoutScreen() {
         try {
           const r = await api.post(`/orders/${order.id}/doku/checkout`);
           const url = r.data?.payment_url;
-          if (url) {
-            await WebBrowser.openBrowserAsync(url);
-          }
+          if (url) await WebBrowser.openBrowserAsync(url);
         } catch {}
       }
       navigation.navigate("OrderDetail", {
@@ -207,9 +205,8 @@ export default function CheckoutScreen() {
   const methods = (() => {
     const list: PaymentMethod[] = pmOptions.length
       ? pmOptions
-      : [{ id: 0, code: "doku-qris", name: "QRIS (DOKU)" }];
-    const hasPoints = list.some((m) => m.code === "flame-points");
-    if (!hasPoints)
+      : [{ id: 0, code: "doku-qris", name: "QRIS" }];
+    if (!list.some((m) => m.code === "flame-points"))
       list.push({ id: -1, code: "flame-points", name: "Flame Points" });
     return list;
   })();
@@ -221,331 +218,435 @@ export default function CheckoutScreen() {
 
   return (
     <Screen>
-      <Modal visible={gymModalOpen} animationType="fade" transparent>
+      {/* -- REFINED GYM MODAL -- */}
+      <Modal visible={gymModalOpen} animationType="slide" transparent>
         <View
           style={{
             flex: 1,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            padding: 14,
-            justifyContent: "center",
+            backgroundColor: "rgba(0,0,0,0.8)",
+            justifyContent: "flex-end",
           }}
         >
           <View
             style={{
-              backgroundColor: theme.colors.bg,
-              borderRadius: 18,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              overflow: "hidden",
-              maxHeight: "85%",
+              backgroundColor: "#121212",
+              borderTopLeftRadius: 32,
+              borderTopRightRadius: 32,
+              paddingBottom: 40,
+              maxHeight: "90%",
             }}
           >
-            <View style={{ padding: 14, gap: 10 }}>
+            <View
+              style={{
+                width: 40,
+                height: 4,
+                backgroundColor: "#333",
+                borderRadius: 2,
+                alignSelf: "center",
+                marginTop: 12,
+              }}
+            />
+
+            <View style={{ padding: 24, gap: 20 }}>
               <View
                 style={{
                   flexDirection: "row",
-                  alignItems: "center",
                   justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
-                <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: "900" }}>
-                  Choose gym coverage
+                <Text
+                  style={{ color: "#fff", fontSize: 20, fontWeight: "900" }}
+                >
+                  Delivery Coverage
                 </Text>
-                <Pressable onPress={() => setGymModalOpen(false)}>
-                  <Ionicons name="close" size={18} color={theme.colors.muted} />
+                <Pressable
+                  onPress={() => setGymModalOpen(false)}
+                  style={{
+                    backgroundColor: "#222",
+                    padding: 8,
+                    borderRadius: 20,
+                  }}
+                >
+                  <Ionicons name="close" size={20} color="#fff" />
                 </Pressable>
               </View>
+
               <View
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 10,
+                  gap: 12,
+                  backgroundColor: "#1a1a1a",
+                  borderRadius: 16,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
                   borderWidth: 1,
-                  borderColor: theme.colors.border,
-                  borderRadius: theme.radius.md,
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
+                  borderColor: "rgba(255,255,255,0.05)",
                 }}
               >
-                <Ionicons name="search" size={16} color={theme.colors.muted} />
+                <Ionicons name="search" size={20} color={theme.colors.muted} />
                 <TextInput
                   value={gymSearch}
                   onChangeText={setGymSearch}
-                  placeholder="Search gym..."
+                  placeholder="Find your gym..."
                   placeholderTextColor={theme.colors.muted}
-                  style={{ flex: 1, color: theme.colors.text }}
+                  style={{ flex: 1, color: "#fff", fontSize: 16 }}
                 />
               </View>
-              <Pressable
-                onPress={() => {
-                  setGymId(null);
-                  setGymModalOpen(false);
-                }}
+
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                style={{ maxHeight: 400 }}
               >
-                <View
-                  style={{
-                    borderWidth: 1,
-                    borderColor: !gymId ? theme.colors.green : theme.colors.border,
-                    backgroundColor: !gymId ? "#0b1b12" : "transparent",
-                    borderRadius: theme.radius.md,
-                    padding: 12,
-                    gap: 4,
-                  }}
-                >
-                  <Text style={{ color: theme.colors.text, fontWeight: "900" }}>
-                    Custom address
-                  </Text>
-                  <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                    Ketik alamat manual
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-            <ScrollView contentContainerStyle={{ padding: 14, gap: 10 }}>
-              {(gymsQuery.data ?? [])
-                .filter((g: any) => {
-                  const s = gymSearch.trim().toLowerCase();
-                  if (!s) return true;
-                  return String(g.gym_name ?? "").toLowerCase().includes(s);
-                })
-                .map((g: any) => {
-                  const active = Number(gymId ?? 0) === Number(g.id);
-                  return (
-                    <Pressable
-                      key={g.id}
-                      onPress={() => {
-                        setGymId(Number(g.id));
-                        setGymModalOpen(false);
-                        const parts = [g.gym_name, g.address, g.city, g.province].filter(Boolean);
-                        if (!deliveryAddress) setDeliveryAddress(parts.join(", "));
+                <View style={{ gap: 12 }}>
+                  <Pressable
+                    onPress={() => {
+                      setGymId(null);
+                      setGymModalOpen(false);
+                    }}
+                  >
+                    <View
+                      style={{
+                        padding: 16,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: !gymId
+                          ? theme.colors.green
+                          : "rgba(255,255,255,0.05)",
+                        backgroundColor: !gymId
+                          ? "rgba(34, 197, 94, 0.1)"
+                          : "#1a1a1a",
                       }}
                     >
-                      <View
+                      <Text
                         style={{
-                          borderWidth: 1,
-                          borderColor: active ? theme.colors.green : theme.colors.border,
-                          backgroundColor: active ? "#0b1b12" : "transparent",
-                          borderRadius: theme.radius.md,
-                          padding: 12,
-                          gap: 4,
+                          color: "#fff",
+                          fontWeight: "900",
+                          fontSize: 16,
                         }}
                       >
-                        <Text style={{ color: theme.colors.text, fontWeight: "900" }} numberOfLines={1}>
-                          {g.gym_name}
-                        </Text>
-                        <Text style={{ color: theme.colors.muted, fontSize: 12 }} numberOfLines={2}>
-                          {[g.address, g.city, g.province].filter(Boolean).join(", ")}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-            </ScrollView>
+                        Custom Delivery
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.colors.muted,
+                          fontSize: 12,
+                          marginTop: 4,
+                        }}
+                      >
+                        Input address manually
+                      </Text>
+                    </View>
+                  </Pressable>
+
+                  {(gymsQuery.data ?? [])
+                    .filter(
+                      (g: any) =>
+                        !gymSearch ||
+                        g.gym_name
+                          .toLowerCase()
+                          .includes(gymSearch.toLowerCase()),
+                    )
+                    .map((g: any) => {
+                      const active = Number(gymId) === Number(g.id);
+                      return (
+                        <Pressable
+                          key={g.id}
+                          onPress={() => {
+                            setGymId(Number(g.id));
+                            setGymModalOpen(false);
+                          }}
+                        >
+                          <View
+                            style={{
+                              padding: 16,
+                              borderRadius: 20,
+                              borderWidth: 1,
+                              borderColor: active
+                                ? theme.colors.green
+                                : "rgba(255,255,255,0.05)",
+                              backgroundColor: active
+                                ? "rgba(34, 197, 94, 0.1)"
+                                : "#1a1a1a",
+                            }}
+                          >
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: "#fff",
+                                  fontWeight: "900",
+                                  fontSize: 16,
+                                }}
+                              >
+                                {g.gym_name}
+                              </Text>
+                              {active && (
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={20}
+                                  color={theme.colors.green}
+                                />
+                              )}
+                            </View>
+                            <Text
+                              style={{
+                                color: theme.colors.muted,
+                                fontSize: 12,
+                                marginTop: 4,
+                              }}
+                              numberOfLines={2}
+                            >
+                              {g.address}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                </View>
+              </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
+
       <ScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          padding: theme.spacing.md,
-          gap: theme.spacing.md,
+          padding: 20,
+          gap: 20,
+          paddingBottom: 20 + Math.max(insets.bottom, 16) + 24,
         }}
-        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
-            tintColor={theme.colors.text}
+            tintColor={theme.colors.green}
             refreshing={refreshing}
             onRefresh={onRefresh}
           />
         }
       >
         <Text
-          style={{ color: theme.colors.text, fontSize: 20, fontWeight: "800" }}
+          style={{
+            color: "#fff",
+            fontSize: 28,
+            fontWeight: "900",
+            letterSpacing: -1,
+          }}
         >
           Checkout
         </Text>
 
-        <Card style={{ gap: 10 }}>
+        {/* -- ITEMS SECTION -- */}
+        <View style={{ gap: 12 }}>
           <Text
             style={{
-              color: theme.colors.text,
-              fontSize: 16,
-              fontWeight: "900",
+              color: "rgba(255,255,255,0.5)",
+              fontWeight: "800",
+              textTransform: "uppercase",
+              fontSize: 12,
+              letterSpacing: 1,
             }}
           >
-            Items
+            Order Summary
           </Text>
           {cartItems.map((i) => (
             <View
               key={i.key}
               style={{
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: theme.radius.md,
-                padding: 12,
-                gap: 6,
-              }}
-            >
-              <View
-                style={{ flexDirection: "row", gap: 12, alignItems: "center" }}
-              >
-                {toPublicUrl(i.image) ? (
-                  <Image
-                    source={{ uri: toPublicUrl(i.image) as string }}
-                    style={{
-                      width: 46,
-                      height: 46,
-                      borderRadius: 10,
-                      backgroundColor: "#0a0f0c",
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                    }}
-                    resizeMode="contain"
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: 46,
-                      height: 46,
-                      borderRadius: 10,
-                      backgroundColor: "#0a0f0c",
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Ionicons
-                      name="image"
-                      size={16}
-                      color={theme.colors.muted}
-                    />
-                  </View>
-                )}
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text
-                    style={{ color: theme.colors.text, fontWeight: "900" }}
-                    numberOfLines={1}
-                  >
-                    {i.name}
-                  </Text>
-                  <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                    {i.quantity} × Rp{" "}
-                    {(
-                      Number(i.base_price ?? 0) +
-                      (i.modifier_options ?? []).reduce(
-                        (s, o) => s + Number(o.additional_price ?? 0),
-                        0,
-                      )
-                    ).toLocaleString("id-ID")}
-                  </Text>
-                </View>
-              </View>
-              {(i.modifier_options ?? []).length ? (
-                <View style={{ gap: 4 }}>
-                  {(i.modifier_options ?? []).map((m, idx) => (
-                    <Text
-                      key={`${i.key}:${idx}`}
-                      style={{ color: theme.colors.muted, fontSize: 12 }}
-                    >
-                      {m.modifier_name}: {m.option_name}
-                      {Number(m.additional_price ?? 0) > 0
-                        ? ` (+Rp ${Number(m.additional_price).toLocaleString(
-                            "id-ID",
-                          )})`
-                        : ""}
-                    </Text>
-                  ))}
-                </View>
-              ) : null}
-            </View>
-          ))}
-          {!cartItems.length ? (
-            <Text style={{ color: theme.colors.muted }}>Cart is empty</Text>
-          ) : null}
-        </Card>
-
-        {!isTrainer ? (
-          <Card style={{ gap: 10 }}>
-            <View
-              style={{
                 flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
+                gap: 14,
+                backgroundColor: "#151515",
+                padding: 12,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.03)",
               }}
             >
-              <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: "900" }}>
-                Gym coverage
-              </Text>
-              <Pressable onPress={() => setGymModalOpen(true)}>
-                <Text style={{ color: theme.colors.green, fontWeight: "900" }}>
-                  Choose
-                </Text>
-              </Pressable>
-            </View>
-            {selectedGym ? (
-              <View
+              <Image
+                source={
+                  toPublicUrl(i.image)
+                    ? { uri: toPublicUrl(i.image) as string }
+                    : require("../../assets/icon.png")
+                }
                 style={{
-                  borderWidth: 1,
-                  borderColor: theme.colors.border,
-                  borderRadius: theme.radius.md,
-                  padding: 12,
-                  gap: 4,
+                  width: 60,
+                  height: 60,
+                  borderRadius: 14,
+                  backgroundColor: "#000",
                 }}
-              >
-                <Text style={{ color: theme.colors.text, fontWeight: "900" }} numberOfLines={1}>
-                  {selectedGym.gym_name}
-                </Text>
-                <Text style={{ color: theme.colors.muted, fontSize: 12 }} numberOfLines={2}>
-                  {[selectedGym.address, selectedGym.city, selectedGym.province].filter(Boolean).join(", ")}
+              />
+              <View style={{ flex: 1, justifyContent: "center" }}>
+                <Text
+                  style={{ color: "#fff", fontWeight: "800", fontSize: 15 }}
+                  numberOfLines={1}
+                >
+                  {i.name}
                 </Text>
                 <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                  Free delivery to gym coverage
+                  {i.quantity} pcs • Rp{" "}
+                  {(
+                    Number(i.base_price) +
+                    (i.modifier_options ?? []).reduce(
+                      (s, o) => s + Number(o.additional_price),
+                      0,
+                    )
+                  ).toLocaleString("id-ID")}
                 </Text>
+                {i.modifier_options?.map((m, idx) => (
+                  <Text
+                    key={idx}
+                    style={{
+                      color: theme.colors.green,
+                      fontSize: 10,
+                      fontWeight: "700",
+                    }}
+                  >
+                    + {m.option_name}
+                  </Text>
+                ))}
               </View>
-            ) : (
-              <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                Custom address. Tap “Choose” to select gym coverage.
-              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* -- DELIVERY SECTION -- */}
+        <View style={{ gap: 12 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: "rgba(255,255,255,0.5)",
+                fontWeight: "800",
+                textTransform: "uppercase",
+                fontSize: 12,
+                letterSpacing: 1,
+              }}
+            >
+              Shipping Details
+            </Text>
+            {!isTrainer && (
+              <Pressable
+                onPress={() => setGymModalOpen(true)}
+                style={{
+                  backgroundColor: "rgba(34, 197, 94, 0.1)",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.colors.green,
+                    fontWeight: "800",
+                    fontSize: 12,
+                  }}
+                >
+                  Change Gym
+                </Text>
+              </Pressable>
             )}
+          </View>
+
+          <Card
+            style={{
+              padding: 16,
+              borderRadius: 24,
+              gap: 16,
+              backgroundColor: "#151515",
+            }}
+          >
+            {selectedGym && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                  backgroundColor: "rgba(34, 197, 94, 0.05)",
+                  padding: 12,
+                  borderRadius: 16,
+                }}
+              >
+                <Ionicons
+                  name="business"
+                  size={20}
+                  color={theme.colors.green}
+                />
+                <View>
+                  <Text
+                    style={{ color: "#fff", fontWeight: "800", fontSize: 14 }}
+                  >
+                    {selectedGym.gym_name}
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.colors.green,
+                      fontSize: 11,
+                      fontWeight: "700",
+                    }}
+                  >
+                    Free Delivery Applied
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <TextField
+              label="Full Address"
+              value={deliveryAddress}
+              onChangeText={setDeliveryAddress}
+              placeholder="St. Number, Building, floor..."
+              multiline
+              style={{ minHeight: 60 }}
+            />
+            <TextField
+              label="Courier Notes"
+              value={deliveryNotes}
+              onChangeText={setDeliveryNotes}
+              placeholder="e.g. drop at reception"
+            />
+
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <TextField
+                  label="Recipient"
+                  value={recipientName}
+                  onChangeText={setRecipientName}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <TextField
+                  label="Phone"
+                  value={recipientPhone}
+                  onChangeText={setRecipientPhone}
+                  keyboardType="phone-pad"
+                />
+              </View>
+            </View>
           </Card>
-        ) : null}
+        </View>
 
-        <Card style={{ gap: theme.spacing.md }}>
-          <TextField
-            label="Delivery address"
-            value={deliveryAddress}
-            onChangeText={setDeliveryAddress}
-            placeholder="Address"
-            multiline
-            style={{ minHeight: 80, textAlignVertical: "top" }}
-            editable
-          />
-          <TextField
-            label="Notes (optional)"
-            value={deliveryNotes}
-            onChangeText={setDeliveryNotes}
-            placeholder="Notes"
-          />
-
-          <TextField
-            label="Recipient name"
-            value={recipientName}
-            onChangeText={setRecipientName}
-            placeholder="Name"
-          />
-
-          <TextField
-            label="Recipient phone"
-            value={recipientPhone}
-            onChangeText={setRecipientPhone}
-            placeholder="Phone"
-            keyboardType="phone-pad"
-          />
-        </Card>
-
-        <Card style={{ gap: theme.spacing.sm }}>
-          <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
-            Payment method
+        {/* -- PAYMENT SECTION -- */}
+        <View style={{ gap: 12 }}>
+          <Text
+            style={{
+              color: "rgba(255,255,255,0.5)",
+              fontWeight: "800",
+              textTransform: "uppercase",
+              fontSize: 12,
+              letterSpacing: 1,
+            }}
+          >
+            Payment Method
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
             {methods.map((m) => {
@@ -554,29 +655,34 @@ export default function CheckoutScreen() {
                 <Pressable
                   key={m.code}
                   onPress={() => setPaymentMethod(m.code)}
-                  style={{ width: "31%" }}
+                  style={{ flex: 1, minWidth: "25%" }}
                 >
                   <View
                     style={{
+                      padding: 16,
+                      borderRadius: 20,
+                      backgroundColor: active
+                        ? "rgba(34, 197, 94, 0.1)"
+                        : "#151515",
                       borderWidth: 1,
                       borderColor: active
                         ? theme.colors.green
-                        : theme.colors.border,
-                      backgroundColor: active ? "#0b1b12" : "transparent",
-                      borderRadius: theme.radius.md,
-                      paddingVertical: 12,
-                      paddingHorizontal: 10,
-                      minHeight: 56,
-                      justifyContent: "center",
+                        : "rgba(255,255,255,0.03)",
+                      alignItems: "center",
                     }}
                   >
+                    <Ionicons
+                      name={m.code === "flame-points" ? "flash" : "card"}
+                      size={20}
+                      color={active ? theme.colors.green : "#555"}
+                    />
                     <Text
                       style={{
-                        color: active ? theme.colors.text : theme.colors.muted,
-                        fontSize: 12,
-                        fontWeight: "900",
+                        color: active ? "#fff" : theme.colors.muted,
+                        fontWeight: "600",
+                        fontSize: 10,
+                        marginTop: 8,
                       }}
-                      numberOfLines={2}
                     >
                       {m.name}
                     </Text>
@@ -585,61 +691,94 @@ export default function CheckoutScreen() {
               );
             })}
           </View>
-        </Card>
+        </View>
 
-        {paymentMethod === "flame-points" ? (
-          <Card style={{ gap: 10 }}>
-            <Text style={{ color: theme.colors.text, fontWeight: "900" }}>
-              Flame Points
-            </Text>
+        {/* -- FLAME POINTS INFO -- */}
+        {paymentMethod === "flame-points" && (
+          <LinearGradient
+            colors={["#1a1a1a", "#0d1a11"]}
+            style={{
+              padding: 20,
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: pointsOk
+                ? "rgba(34, 197, 94, 0.2)"
+                : theme.colors.danger,
+            }}
+          >
             <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
             >
-              <Text style={{ color: theme.colors.muted }}>Saldo</Text>
-              <Text style={{ color: theme.colors.text, fontWeight: "900" }}>
-                {pointsBalance.toLocaleString("id-ID")} fp
-              </Text>
+              <View>
+                <Text
+                  style={{
+                    color: theme.colors.muted,
+                    fontSize: 12,
+                    fontWeight: "700",
+                  }}
+                >
+                  YOUR BALANCE
+                </Text>
+                <Text
+                  style={{ color: "#fff", fontSize: 20, fontWeight: "900" }}
+                >
+                  {pointsBalance.toLocaleString("id-ID")} fp
+                </Text>
+              </View>
+              <Ionicons name="flash" size={32} color={theme.colors.green} />
             </View>
             <View
+              style={{
+                height: 1,
+                backgroundColor: "rgba(255,255,255,0.05)",
+                marginVertical: 15,
+              }}
+            />
+            <View
               style={{ flexDirection: "row", justifyContent: "space-between" }}
             >
-              <Text style={{ color: theme.colors.muted }}>Total dibayar</Text>
-              <Text style={{ color: theme.colors.text, fontWeight: "900" }}>
+              <Text style={{ color: theme.colors.muted }}>Payment Amount</Text>
+              <Text style={{ color: "#fff", fontWeight: "800" }}>
                 {pointsDue.toLocaleString("id-ID")} fp
               </Text>
             </View>
-            {!pointsOk ? (
-              <View
+            {!pointsOk && (
+              <Text
                 style={{
-                  borderWidth: 1,
-                  borderColor: theme.colors.border,
-                  backgroundColor: "#0a0f0c",
-                  borderRadius: theme.radius.md,
-                  padding: 10,
+                  color: "#ef4444",
+                  fontSize: 12,
+                  fontWeight: "700",
+                  marginTop: 12,
+                  textAlign: "center",
                 }}
               >
-                <Text style={{ color: theme.colors.danger, fontWeight: "900" }}>
-                  Maaf yaa, point kamu belum cukup
-                </Text>
-              </View>
-            ) : (
-              <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                Points akan langsung dipotong saat order dibuat.
+                Insufficient points balance
               </Text>
             )}
-          </Card>
-        ) : null}
+          </LinearGradient>
+        )}
 
-        <Card style={{ gap: theme.spacing.sm }}>
-          <Text
+        {/* -- FINAL ACTION -- */}
+        <View style={{ marginTop: 10, gap: 16 }}>
+          <View
             style={{
-              color: theme.colors.text,
-              fontSize: 16,
-              fontWeight: "800",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingHorizontal: 4,
             }}
           >
-            Total: Rp {Number(total()).toLocaleString("id-ID")}
-          </Text>
+            <Text style={{ color: theme.colors.muted, fontWeight: "700" }}>
+              Total Payment
+            </Text>
+            <Text style={{ color: "#fff", fontSize: 24, fontWeight: "900" }}>
+              Rp {Number(total()).toLocaleString("id-ID")}
+            </Text>
+          </View>
           <Button
             onPress={() => createOrder.mutate()}
             disabled={
@@ -649,10 +788,13 @@ export default function CheckoutScreen() {
               !paymentMethod ||
               !pointsOk
             }
+            style={{ height: 60, borderRadius: 20 }}
           >
-            {createOrder.isPending ? "Placing order..." : "Place order"}
+            <Text style={{ color: "#000", fontWeight: "900", fontSize: 18 }}>
+              {createOrder.isPending ? "Processing..." : "Confirm & Order"}
+            </Text>
           </Button>
-        </Card>
+        </View>
       </ScrollView>
     </Screen>
   );

@@ -11,9 +11,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { theme } from "./theme";
-
-const BG_URL =
-  "https://images.unsplash.com/photo-1520975916090-3105956dac38?auto=format&fit=crop&w=2400&q=80";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function AuthShell({
   title,
@@ -27,6 +25,7 @@ export default function AuthShell({
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
 }>) {
+  const insets = useSafeAreaInsets();
   const Container: any = scroll ? ScrollView : View;
   const containerProps = scroll
     ? {
@@ -34,6 +33,8 @@ export default function AuthShell({
           {
             flexGrow: 1,
             padding: theme.spacing.md,
+            paddingTop: theme.spacing.md + insets.top,
+            paddingBottom: theme.spacing.md + insets.bottom,
             justifyContent: "center",
             alignItems: "center",
           },
@@ -46,6 +47,8 @@ export default function AuthShell({
           {
             flex: 1,
             padding: theme.spacing.md,
+            paddingTop: theme.spacing.md + insets.top,
+            paddingBottom: theme.spacing.md + insets.bottom,
             justifyContent: "center",
             alignItems: "center",
           },
@@ -56,7 +59,7 @@ export default function AuthShell({
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <ImageBackground
-        source={{ uri: BG_URL }}
+        source={require("../../assets/login-bg.png")}
         resizeMode="cover"
         style={{ flex: 1 }}
       >

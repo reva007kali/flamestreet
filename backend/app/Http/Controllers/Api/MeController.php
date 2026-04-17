@@ -20,7 +20,7 @@ class MeController extends Controller
         $user = $request->user()->load(['trainerProfile', 'memberProfile']);
 
         return response()->json([
-            'user' => $user->only(['id', 'full_name', 'username', 'phone_number', 'email', 'avatar', 'is_active']) + [
+            'user' => $user->only(['id', 'full_name', 'username', 'phone_number', 'email', 'avatar', 'flamehub_bio', 'is_active']) + [
                 'roles' => $user->getRoleNames(),
                 'trainer_profile' => $user->trainerProfile,
                 'member_profile' => $user->memberProfile,
@@ -34,6 +34,7 @@ class MeController extends Controller
         $data = $request->validate([
             'full_name' => ['sometimes', 'string', 'max:100'],
             'phone_number' => ['sometimes', 'string', 'max:20', 'unique:users,phone_number,'.$user->id],
+            'flamehub_bio' => ['sometimes', 'nullable', 'string', 'max:160'],
         ]);
 
         $user->fill($data);

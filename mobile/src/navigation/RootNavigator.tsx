@@ -22,8 +22,11 @@ import ArticleDetailScreen from "../screens/ArticleDetailScreen";
 import FlamehubFeedScreen from "../screens/flamehub/FlamehubFeedScreen";
 import FlamehubCreatePostScreen from "../screens/flamehub/FlamehubCreatePostScreen";
 import FlamehubPostScreen from "../screens/flamehub/FlamehubPostScreen";
+import FlamehubEditPostScreen from "../screens/flamehub/FlamehubEditPostScreen";
 import FlamehubProfileScreen from "../screens/flamehub/FlamehubProfileScreen";
 import FlamehubSearchScreen from "../screens/flamehub/FlamehubSearchScreen";
+import FlamehubFollowersScreen from "../screens/flamehub/FlamehubFollowersScreen";
+import FlamehubTabs from "./FlamehubTabs";
 import ProfileScreen from "../screens/ProfileScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
 import PointsHistoryScreen from "../screens/PointsHistoryScreen";
@@ -121,7 +124,7 @@ function HeaderActions() {
 // ─── Animasi untuk stack screen (slide + fade) ───────────────────────────────
 const stackScreenAnimation = {
   animation: "slide_from_right" as const, // slide dari kanan saat push
-  animationDuration: 320,
+  animationDuration: 200,
   gestureEnabled: true, // swipe back gesture aktif
   gestureDirection: "horizontal" as const,
   customAnimationOnGesture: true,
@@ -131,7 +134,7 @@ const stackScreenAnimation = {
 // ─── Animasi untuk Auth screen (fade) ────────────────────────────────────────
 const authScreenAnimation = {
   animation: "slide_from_right" as const,
-  animationDuration: 300,
+  animationDuration: 200,
 };
 
 function AuthNavigator() {
@@ -181,6 +184,7 @@ function AppTabs() {
 
   return (
     <Tab.Navigator
+      id="AppTabs"
       initialRouteName={initialRouteName}
       detachInactiveScreens={false}
       screenOptions={({ route }) => ({
@@ -273,8 +277,8 @@ function AppTabs() {
       {showFlamehub ? (
         <Tab.Screen
           name="Flamehub"
-          component={FlamehubFeedScreen}
-          options={{ title: "Flamehub" }}
+          component={FlamehubTabs}
+          options={{ title: "Flamehub", tabBarStyle: { display: "none" } }}
         />
       ) : null}
       {showProducts ? (
@@ -378,6 +382,7 @@ export default function RootNavigator() {
       }}
     >
       <RootStack.Navigator
+        id="RootStack"
         screenOptions={{
           ...stackScreenAnimation,
           headerShown: false,
@@ -391,7 +396,7 @@ export default function RootNavigator() {
             options={{
               headerShown: false,
               animation: "fade", // fade saat login/logout
-              animationDuration: 400,
+              animationDuration: 200,
             }}
           />
         ) : (
@@ -404,7 +409,7 @@ export default function RootNavigator() {
                   headerShown: false,
                   gestureEnabled: false,
                   animation: "fade",
-                  animationDuration: 250,
+                  animationDuration: 200,
                 }}
               />
             ) : null}
@@ -414,7 +419,7 @@ export default function RootNavigator() {
               options={{
                 headerShown: false,
                 animation: "fade", // fade smooth saat masuk app
-                animationDuration: 400,
+                animationDuration: 200,
               }}
             />
           </>
@@ -452,6 +457,14 @@ export default function RootNavigator() {
           }}
         />
         <RootStack.Screen
+          name="FlamehubEditPost"
+          component={FlamehubEditPostScreen}
+          options={{
+            title: "Edit Post",
+            ...stackScreenAnimation,
+          }}
+        />
+        <RootStack.Screen
           name="FlamehubProfile"
           component={FlamehubProfileScreen}
           options={{
@@ -468,12 +481,20 @@ export default function RootNavigator() {
           }}
         />
         <RootStack.Screen
+          name="FlamehubFollowers"
+          component={FlamehubFollowersScreen}
+          options={{
+            title: "Followers",
+            ...stackScreenAnimation,
+          }}
+        />
+        <RootStack.Screen
           name="Checkout"
           component={CheckoutScreen}
           options={{
             title: "Checkout",
             animation: "slide_from_bottom", // checkout naik dari bawah
-            animationDuration: 350,
+            animationDuration: 220,
             gestureEnabled: true,
             gestureDirection: "vertical",
           }}

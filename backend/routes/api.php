@@ -35,6 +35,9 @@ use App\Http\Controllers\Api\Flamehub\FeedController as FlamehubFeedController;
 use App\Http\Controllers\Api\Flamehub\PostController as FlamehubPostController;
 use App\Http\Controllers\Api\Flamehub\CommentController as FlamehubCommentController;
 use App\Http\Controllers\Api\Flamehub\LikeController as FlamehubLikeController;
+use App\Http\Controllers\Api\Flamehub\SaveController as FlamehubSaveController;
+use App\Http\Controllers\Api\Flamehub\HideController as FlamehubHideController;
+use App\Http\Controllers\Api\Flamehub\SavedController as FlamehubSavedController;
 use App\Http\Controllers\Api\Flamehub\UserController as FlamehubUserController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,15 +69,22 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('flamehub')->group(function () {
         Route::get('/feed', [FlamehubFeedController::class, 'index']);
+        Route::get('/saved', [FlamehubSavedController::class, 'index']);
         Route::post('/posts', [FlamehubPostController::class, 'store'])->middleware('throttle:uploads');
         Route::get('/posts/{id}', [FlamehubPostController::class, 'show']);
+        Route::put('/posts/{id}', [FlamehubPostController::class, 'update']);
         Route::delete('/posts/{id}', [FlamehubPostController::class, 'destroy']);
         Route::post('/posts/{postId}/like', [FlamehubLikeController::class, 'store']);
         Route::delete('/posts/{postId}/like', [FlamehubLikeController::class, 'destroy']);
+        Route::post('/posts/{postId}/save', [FlamehubSaveController::class, 'store']);
+        Route::delete('/posts/{postId}/save', [FlamehubSaveController::class, 'destroy']);
+        Route::post('/posts/{postId}/hide', [FlamehubHideController::class, 'store']);
+        Route::delete('/posts/{postId}/hide', [FlamehubHideController::class, 'destroy']);
         Route::get('/posts/{postId}/comments', [FlamehubCommentController::class, 'index']);
         Route::post('/posts/{postId}/comments', [FlamehubCommentController::class, 'store']);
         Route::get('/users/search', [FlamehubUserController::class, 'search']);
         Route::get('/users/{username}', [FlamehubUserController::class, 'show']);
+        Route::get('/users/{username}/followers', [FlamehubUserController::class, 'followers']);
         Route::post('/users/{username}/follow', [FlamehubUserController::class, 'follow']);
         Route::delete('/users/{username}/follow', [FlamehubUserController::class, 'unfollow']);
     });
