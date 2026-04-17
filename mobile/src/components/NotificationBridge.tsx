@@ -6,9 +6,11 @@ import { useAuthStore } from "../store/authStore";
 import { addToInbox } from "../lib/notificationInbox";
 import { createEcho } from "../lib/realtime";
 import { useOrderQueueStore } from "../store/orderQueueStore";
+import * as SecureStore from "expo-secure-store";
 
 const EMPTY_ROLES: readonly string[] = [];
 const ANDROID_DEFAULT_CHANNEL_ID = "default";
+const EXPO_PUSH_TOKEN_KEY = "flamestreet_expo_push_token";
 
 async function ensureAndroidDefaultChannel() {
   if (Platform.OS !== "android") return;
@@ -20,8 +22,9 @@ async function ensureAndroidDefaultChannel() {
     enableVibrate: true,
     showBadge: true,
   });
-  const current =
-    await Notifications.getNotificationChannelAsync(ANDROID_DEFAULT_CHANNEL_ID);
+  const current = await Notifications.getNotificationChannelAsync(
+    ANDROID_DEFAULT_CHANNEL_ID,
+  );
   console.warn(
     "push: android channel ready",
     current?.id,
@@ -82,7 +85,8 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
       const settings = await Notifications.getPermissionsAsync();
       let granted =
         settings.granted ||
-        settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+        settings.ios?.status ===
+          Notifications.IosAuthorizationStatus.PROVISIONAL;
       if (!granted) {
         const req = await Notifications.requestPermissionsAsync();
         granted =
@@ -103,6 +107,10 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
       }
       if (cancelled) return;
 
+      try {
+        await SecureStore.setItemAsync(EXPO_PUSH_TOKEN_KEY, expoPushToken);
+      } catch {}
+
       const { api } = await import("../lib/api");
       try {
         await api.put("/me/push-token", {
@@ -110,7 +118,11 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
           platform: Platform.OS,
         });
       } catch (e: any) {
-        console.warn("push: failed to save token", e?.response?.status, e?.message);
+        console.warn(
+          "push: failed to save token",
+          e?.response?.status,
+          e?.message,
+        );
       }
     }
     initPush().catch((e) => console.warn("push: init failed", e?.message ?? e));
@@ -167,7 +179,10 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
         });
       })
       .catch((e) =>
-        console.warn("push: failed to read last notification response", e?.message ?? e),
+        console.warn(
+          "push: failed to read last notification response",
+          e?.message ?? e,
+        ),
       );
 
     return () => {

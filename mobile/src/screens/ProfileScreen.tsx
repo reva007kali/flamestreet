@@ -13,6 +13,7 @@ import * as ImagePicker from "expo-image-picker";
 import { api } from "../lib/api";
 import { toPublicUrl } from "../lib/assets";
 import { useAuthStore } from "../store/authStore";
+import * as SecureStore from "expo-secure-store";
 import Button from "../ui/Button";
 import Card from "../ui/Card";
 import Screen from "../ui/Screen";
@@ -94,6 +95,7 @@ export default function ProfileScreen() {
   const [flamehubBio, setFlamehubBio] = useState("");
   const [logoutOpen, setLogoutOpen] = useState(false);
   const avatarUrl = toPublicUrl(user?.avatar);
+  const EXPO_PUSH_TOKEN_KEY = "flamestreet_expo_push_token";
 
   useEffect(() => {
     setFullName(user?.full_name ?? "");
@@ -103,6 +105,12 @@ export default function ProfileScreen() {
 
   async function logout() {
     try {
+      const expoPushToken = await SecureStore.getItemAsync(EXPO_PUSH_TOKEN_KEY);
+      if (expoPushToken) {
+        await api.delete("/me/push-token", {
+          data: { expo_push_token: expoPushToken },
+        });
+      }
       await api.post("/auth/logout");
     } catch {}
     await setToken(null);

@@ -132,7 +132,7 @@ export function RealtimeProvider({ children }) {
       const t = data?.type ?? "push";
       const title =
         payload?.notification?.title ?? data?.title ?? "Notification";
-      const body = payload?.notification?.body ?? "";
+      const body = payload?.notification?.body ?? data?.body ?? "";
       const msg = notifMessage(t, { ...data, message: body });
       pushOnce({
         notif: {

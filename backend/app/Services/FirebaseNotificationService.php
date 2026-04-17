@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
-use Kreait\Firebase\Messaging\Notification;
 
 class FirebaseNotificationService
 {
@@ -25,7 +24,7 @@ class FirebaseNotificationService
 
     public function sendToUser(int $userId, string $title, ?string $body = null, array $data = []): void
     {
-        if (! $this->enabled()) {
+        if (!$this->enabled()) {
             return;
         }
 
@@ -40,12 +39,12 @@ class FirebaseNotificationService
 
     public function sendToRoles(array $roles, string $title, ?string $body = null, array $data = []): void
     {
-        if (! $this->enabled()) {
+        if (!$this->enabled()) {
             return;
         }
 
         $userIds = User::query()->role($roles)->pluck('id')->all();
-        if (! count($userIds)) {
+        if (!count($userIds)) {
             return;
         }
 
@@ -61,16 +60,16 @@ class FirebaseNotificationService
     protected function send(array $tokens, string $title, ?string $body, array $data): void
     {
         $tokens = array_values(array_unique(array_filter(array_map('trim', $tokens))));
-        if (! count($tokens)) {
+        if (!count($tokens)) {
             return;
         }
 
-        $data = array_map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v), $data);
+        $data = ['title' => $title, 'body' => $body] + $data;
+        $data = array_map(fn($v) => is_scalar($v) ? (string) $v : json_encode($v), $data);
 
         try {
             $message = CloudMessage::new()
-                ->withNotification(Notification::create($title, $body))
-                ->withData(array_filter($data, fn ($v) => $v !== null));
+                ->withData(array_filter($data, fn($v) => $v !== null));
 
             $report = $this->messaging()->sendMulticast($message, $tokens);
 
@@ -87,4 +86,3 @@ class FirebaseNotificationService
         }
     }
 }
-

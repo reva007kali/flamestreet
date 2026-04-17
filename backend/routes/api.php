@@ -54,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/me/avatar', [MeController::class, 'updateAvatar'])->middleware('throttle:uploads');
     Route::delete('/me/avatar', [MeController::class, 'deleteAvatar']);
     Route::put('/me/push-token', [MeController::class, 'updatePushToken']);
+    Route::delete('/me/push-token', [MeController::class, 'deletePushToken']);
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::delete('/device-tokens', [DeviceTokenController::class, 'destroy']);
     Route::get('/member/points', [MemberPointController::class, 'show'])->middleware('role:member');

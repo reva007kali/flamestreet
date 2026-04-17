@@ -16,10 +16,26 @@ class ExpoNotificationService
             return;
         }
 
-        PushToken::query()->updateOrCreate(
+        $row = PushToken::query()->updateOrCreate(
             ['token' => $token],
             ['user_id' => $userId, 'provider' => $provider, 'platform' => $platform, 'last_seen_at' => now()],
         );
+
+        $this->pruneUserTokens($userId, $provider, $platform, keep: 3, keepIds: [$row->id]);
+    }
+
+    public function deleteToken(int $userId, string $token, string $provider = 'expo'): void
+    {
+        $token = trim($token);
+        if ($token === '' || strlen($token) > 512) {
+            return;
+        }
+
+        PushToken::query()
+            ->where('user_id', $userId)
+            ->where('provider', $provider)
+            ->where('token', $token)
+            ->delete();
     }
 
     public function sendToUser(int $userId, string $title, ?string $body = null, array $data = []): void
@@ -36,7 +52,7 @@ class ExpoNotificationService
     public function sendToRoles(array $roles, string $title, ?string $body = null, array $data = []): void
     {
         $userIds = User::query()->role($roles)->pluck('id')->all();
-        if (! count($userIds)) {
+        if (!count($userIds)) {
             return;
         }
 
@@ -52,7 +68,7 @@ class ExpoNotificationService
     protected function send(array $tokens, string $title, ?string $body, array $data): void
     {
         $tokens = array_values(array_unique(array_filter(array_map('trim', $tokens))));
-        if (! count($tokens)) {
+        if (!count($tokens)) {
             return;
         }
 
@@ -65,24 +81,24 @@ class ExpoNotificationService
                 'channelId' => 'default',
                 'priority' => 'high',
                 'data' => $data,
-            ], fn ($v) => $v !== null);
+            ], fn($v) => $v !== null);
         }, $tokens);
 
         foreach (array_chunk($messages, 100) as $chunk) {
             try {
                 $res = Http::timeout(15)->post('https://exp.host/--/api/v2/push/send', $chunk);
-                if (! $res->ok()) {
+                if (!$res->ok()) {
                     Log::warning('Expo push failed', ['status' => $res->status(), 'body' => $res->body()]);
                     continue;
                 }
 
                 $payload = $res->json();
                 $rows = $payload['data'] ?? null;
-                if (! is_array($rows)) {
+                if (!is_array($rows)) {
                     continue;
                 }
                 foreach ($rows as $i => $row) {
-                    if (! is_array($row)) {
+                    if (!is_array($row)) {
                         continue;
                     }
                     if (($row['status'] ?? null) === 'ok') {
@@ -100,5 +116,34 @@ class ExpoNotificationService
                 Log::warning('Expo push exception', ['error' => $e->getMessage()]);
             }
         }
+    }
+
+    protected function pruneUserTokens(int $userId, string $provider, ?string $platform, int $keep = 3, array $keepIds = []): void
+    {
+        $keepIds = array_values(array_filter(array_map('intval', $keepIds)));
+
+        $q = PushToken::query()
+            ->where('user_id', $userId)
+            ->where('provider', $provider);
+
+        if ($platform === null) {
+            $q->whereNull('platform');
+        } else {
+            $q->where('platform', $platform);
+        }
+
+        $ids = (clone $q)
+            ->orderByDesc('last_seen_at')
+            ->orderByDesc('id')
+            ->limit(max(0, $keep))
+            ->pluck('id')
+            ->all();
+
+        $keepSet = array_values(array_unique(array_merge($ids, $keepIds)));
+        if (!count($keepSet)) {
+            return;
+        }
+
+        $q->whereNotIn('id', $keepSet)->delete();
     }
 }

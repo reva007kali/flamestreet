@@ -33,7 +33,7 @@ class MeController extends Controller
         $user = $request->user();
         $data = $request->validate([
             'full_name' => ['sometimes', 'string', 'max:100'],
-            'phone_number' => ['sometimes', 'string', 'max:20', 'unique:users,phone_number,'.$user->id],
+            'phone_number' => ['sometimes', 'string', 'max:20', 'unique:users,phone_number,' . $user->id],
             'flamehub_bio' => ['sometimes', 'nullable', 'string', 'max:160'],
         ]);
 
@@ -51,11 +51,11 @@ class MeController extends Controller
 
         $user = $request->user();
         $file = $request->file('avatar');
-        $filename = (string) Str::uuid().'.'.$file->getClientOriginalExtension();
+        $filename = (string) Str::uuid() . '.' . $file->getClientOriginalExtension();
         $dir = public_path('uploads/avatars');
         File::ensureDirectoryExists($dir);
         $file->move($dir, $filename);
-        $path = 'uploads/avatars/'.$filename;
+        $path = 'uploads/avatars/' . $filename;
 
         if ($user->avatar) {
             Storage::disk('public')->delete($user->avatar);
@@ -95,6 +95,17 @@ class MeController extends Controller
             isset($data['platform']) ? (string) $data['platform'] : null,
             'expo',
         );
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function deletePushToken(Request $request)
+    {
+        $data = $request->validate([
+            'expo_push_token' => ['required', 'string', 'max:512'],
+        ]);
+
+        $this->expoPush->deleteToken((int) $request->user()->id, (string) $data['expo_push_token']);
 
         return response()->json(['ok' => true]);
     }
