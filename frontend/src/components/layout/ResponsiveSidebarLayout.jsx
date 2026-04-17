@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
 import { useNotifStore } from '@/store/notifStore'
 import SidePanel from '@/components/common/SidePanel'
-import { Bell, ShoppingCart } from 'lucide-react'
+import { Bell, ShoppingCart, ChevronRight } from 'lucide-react'
 import { requestDeviceNotificationPermission } from '@/lib/deviceNotifications'
 
 export default function ResponsiveSidebarLayout({ brand, brandTo, basePath, navItems }) {
@@ -33,7 +33,6 @@ export default function ResponsiveSidebarLayout({ brand, brandTo, basePath, navI
   const activeKey = useMemo(() => {
     const path = location.pathname
     let best = { key: navItems[0]?.to ?? '', score: -1 }
-
     for (const item of navItems) {
       const matchPaths = item.matchPaths?.length ? item.matchPaths : [item.to]
       for (const p of matchPaths) {
@@ -42,7 +41,6 @@ export default function ResponsiveSidebarLayout({ brand, brandTo, basePath, navI
         }
       }
     }
-
     return best.key
   }, [location.pathname, navItems])
 
@@ -60,169 +58,203 @@ export default function ResponsiveSidebarLayout({ brand, brandTo, basePath, navI
   }
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-950 to-zinc-800 text-zinc-100">
-      <aside className="hidden w-[240px] shrink-0 border-r border-zinc-800/70 bg-zinc-900 lg:flex lg:flex-col">
-        <div className="flex h-14 items-center border-b border-zinc-800/70 px-4">
-          <Link to={brandTo} className="text-[13.5px] font-semibold tracking-tight text-zinc-100">
-            {brand}
+    <div className="flex min-h-screen bg-[#09090b] text-zinc-100">
+      {/* DESKTOP SIDEBAR */}
+      <aside className="hidden w-65 max-h-screen sticky top-0 shrink-0 border-r border-zinc-800/40 bg-zinc-900 lg:flex lg:flex-col">
+        <div className="flex h-16 items-center px-6">
+          <Link to={brandTo} className="flex items-center gap-2">
+            <div className="h-7 w-7">
+               <img src="/logo-sm.png" alt="" />
+            </div>
+            <span className="text-sm font-bold tracking-tight text-white uppercase">{brand}</span>
           </Link>
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-800"
-              onClick={async () => {
+        </div>
+
+        <div className="flex flex-1 flex-col gap-8 px-4 py-6">
+          <nav className="space-y-1">
+            <div className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Menu</div>
+            {navItems.map(({ to, label, Icon }) => {
+              const isActive = activeKey === to
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-[var(--accent)] text-[var(--accent-foreground)] shadow-lg shadow-[var(--accent)]/10' 
+                      : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100'
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-current' : 'text-zinc-500 group-hover:text-zinc-300'}`} />
+                  <span className="flex-1">{label}</span>
+                  {isActive && <ChevronRight className="h-3 w-3 opacity-50" />}
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
+
+        {/* Desktop Profile Quick Link */}
+        <div className="mt-auto border-t border-zinc-800/40 p-4">
+           <button 
+             onClick={async () => {
                 setNotifOpen(true)
                 await requestDeviceNotificationPermission()
               }}
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 ? (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold text-[var(--accent-foreground)]">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              ) : null}
-            </button>
-          </div>
+             className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-zinc-900 transition-colors"
+           >
+              <div className="relative h-9 w-9 overflow-hidden rounded-full border border-zinc-800">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-zinc-800 text-xs font-bold text-zinc-400">
+                    {(user?.full_name ?? 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                {unreadCount > 0 && <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full border-2 border-zinc-950 bg-[var(--accent)]" />}
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <div className="truncate text-[13px] font-semibold text-zinc-100">{user?.full_name ?? 'User'}</div>
+                <div className="truncate text-[11px] text-zinc-500">Notifications & Info</div>
+              </div>
+           </button>
         </div>
-        <nav className="flex flex-1 flex-col gap-1 p-2 py-3">
-          {navItems.map(({ to, label, Icon }) => {
-            const isActive = activeKey === to
-            return (
-              <Link
-                key={to}
-                to={to}
-                className={[
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors',
-                  isActive ? 'bg-zinc-800 text-zinc-50' : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200',
-                ].join(' ')}
-              >
-                <Icon
-                  className={[
-                    'h-[15px] w-[15px] shrink-0',
-                    isActive ? 'text-[var(--accent)]' : 'text-zinc-500',
-                  ].join(' ')}
-                />
-                <span>{label}</span>
-              </Link>
-            )
-          })}
-        </nav>
       </aside>
 
+      {/* MAIN CONTENT AREA */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-zinc-800/60 bg-zinc-950/70 px-4 backdrop-blur lg:hidden">
-          <Link to={brandTo} className="flex items-center gap-3">
-            <div className="h-9 w-9 overflow-hidden rounded-full border border-zinc-800 bg-zinc-950">
+        {/* MOBILE HEADER */}
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-zinc-800/40 bg-zinc-950/80 px-4 backdrop-blur-xl lg:hidden">
+          <Link to={brandTo} className="flex items-center gap-3 active:scale-95 transition-transform">
+            <div className="h-10 w-10 overflow-hidden rounded-xl border border-zinc-800 shadow-inner">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-zinc-300">
+                <div className="flex h-full w-full items-center justify-center bg-zinc-900 text-xs font-black text-zinc-400">
                   {(user?.full_name ?? 'U').slice(0, 1).toUpperCase()}
                 </div>
               )}
             </div>
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-zinc-100">{brand}</div>
-              <div className="truncate text-xs text-zinc-500">{user?.full_name ?? ''}</div>
+              <div className="truncate text-sm font-bold tracking-tight text-white uppercase">{brand}</div>
+              <div className="truncate text-[11px] font-medium text-zinc-500">@{user?.username ?? 'user'}</div>
             </div>
           </Link>
+          
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 text-zinc-300 active:bg-zinc-800 transition-colors"
               onClick={async () => {
                 setNotifOpen(true)
                 await requestDeviceNotificationPermission()
               }}
-              aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
-              {unreadCount > 0 ? (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold text-[var(--accent-foreground)]">
-                  {unreadCount > 99 ? '99+' : unreadCount}
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 animate-bounce items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-bold text-[var(--accent-foreground)] shadow-lg shadow-[var(--accent)]/40">
+                  {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
-              ) : null}
+              )}
             </button>
             <Link
               to={cartTo}
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-              aria-label="Cart"
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 text-zinc-300 active:bg-zinc-800 transition-colors"
             >
               <ShoppingCart className="h-5 w-5" />
-              {cartCount ? (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold text-[var(--accent-foreground)]">
-                  {cartCount > 99 ? '99+' : cartCount}
+              {cartCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-black shadow-lg">
+                  {cartCount > 9 ? '9+' : cartCount}
                 </span>
-              ) : null}
+              )}
             </Link>
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+7rem)] lg:px-8 lg:py-7 lg:pb-7">
+        {/* PAGE CONTENT */}
+        <main className="flex-1 px-4 py-6 pb-[calc(env(safe-area-inset-bottom)+7rem)] lg:px-10 lg:py-8 lg:pb-10">
           <div className="mx-auto w-full max-w-6xl">
             <Outlet />
           </div>
         </main>
 
-        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur lg:hidden">
-          <div className="grid grid-cols-5 gap-1 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
+        {/* MOBILE BOTTOM NAV */}
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-800/40 bg-zinc-950/90 backdrop-blur-2xl lg:hidden">
+          <div className="grid grid-cols-5 gap-1 px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
             {navItems.slice(0, 5).map(({ to, label, Icon }) => {
                 const isActive = activeKey === to
                 return (
                   <Link
                     key={to}
                     to={to}
-                    className={[
-                      'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium transition-colors',
-                      isActive
-                        ? 'bg-[var(--accent-muted)] text-[var(--accent)]'
-                        : 'text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-200',
-                    ].join(' ')}
-                    aria-current={isActive ? 'page' : undefined}
+                    className={`group flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl py-1 transition-all duration-300 ${
+                      isActive ? 'text-[var(--accent)]' : 'text-zinc-500 active:text-zinc-300'
+                    }`}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span className="leading-none">{label}</span>
+                    <div className={`relative flex items-center justify-center transition-all duration-300 ${isActive ? 'scale-110' : ''}`}>
+                       <Icon className={`h-5 w-5 ${isActive ? 'drop-shadow-[0_0_8px_rgba(var(--accent-rgb),0.5)]' : ''}`} />
+                    </div>
+                    <span className={`text-[10px] font-bold tracking-tight leading-none ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+                      {label}
+                    </span>
+                    {isActive && (
+                       <div className="absolute top-0 h-0.5 w-8 rounded-full bg-[var(--accent)] shadow-[0_0_10px_rgba(var(--accent-rgb),0.8)]" />
+                    )}
                   </Link>
                 )
               })}
           </div>
         </nav>
 
-        <SidePanel open={notifOpen} title="Notifications" onClose={() => setNotifOpen(false)}>
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-zinc-400">{unreadCount} unread</div>
+        {/* NOTIFICATIONS PANEL */}
+        <SidePanel open={notifOpen} title="Activity" onClose={() => setNotifOpen(false)}>
+          <div className="flex items-center justify-between border-b border-zinc-800/50 pb-4">
+            <div className="text-xs font-bold uppercase tracking-widest text-zinc-500">{unreadCount} New Alerts</div>
             <button
               type="button"
-              className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)]"
+              className="text-xs font-semibold text-[var(--accent)] hover:brightness-125 transition-all"
               onClick={() => markAllRead()}
             >
-              Mark all read
+              Clear All
             </button>
           </div>
-          <div className="mt-3 space-y-2">
+          
+          <div className="mt-4 space-y-3 overflow-y-auto pr-1">
             {notifications.map((n) => (
               <button
                 key={n.id}
                 type="button"
-                className={[
-                  'w-full rounded-xl border p-3 text-left transition-colors',
+                className={`group w-full rounded-2xl border p-4 text-left transition-all duration-200 ${
                   n.read
-                    ? 'border-zinc-800 bg-zinc-950 text-zinc-300'
-                    : 'border-[var(--accent-border)] bg-[var(--accent-muted)] text-zinc-100',
-                ].join(' ')}
+                    ? 'border-zinc-800/50 bg-zinc-900/30 text-zinc-400'
+                    : 'border-[var(--accent)]/30 bg-[var(--accent)]/[0.03] text-zinc-100 ring-1 ring-[var(--accent)]/10'
+                }`}
                 onClick={() => markRead(n.id)}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium">{n.title ?? 'Notification'}</div>
-                    {n.message ? <div className="mt-1 text-xs text-zinc-400">{n.message}</div> : null}
+                    <div className="text-[13px] font-bold leading-snug group-hover:text-[var(--accent)] transition-colors">
+                      {n.title ?? 'System Update'}
+                    </div>
+                    {n.message && <div className="mt-1 text-[11px] leading-relaxed text-zinc-500 line-clamp-2">{n.message}</div>}
+                    <div className="mt-2 text-[9px] font-bold uppercase tracking-wider text-zinc-600">
+                      {fmtNotifTime(n.createdAt)}
+                    </div>
                   </div>
-                  <div className="shrink-0 text-[10px] text-zinc-500">{fmtNotifTime(n.createdAt)}</div>
+                  {!n.read && <div className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.6)]" />}
                 </div>
               </button>
             ))}
-            {!notifications.length ? <div className="text-sm text-zinc-400">No notifications.</div> : null}
+            
+            {!notifications.length && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="h-12 w-12 rounded-full bg-zinc-900 flex items-center justify-center mb-4">
+                   <Bell className="h-6 w-6 text-zinc-700" />
+                </div>
+                <div className="text-sm font-bold text-zinc-100">All caught up!</div>
+                <div className="text-xs text-zinc-500 mt-1">No new notifications at this time.</div>
+              </div>
+            )}
           </div>
         </SidePanel>
       </div>

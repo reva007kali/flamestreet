@@ -29,12 +29,6 @@ export default function MemberLayout() {
           matchPaths: ["/member/orders", "/orders"],
         },
         {
-          to: "/member/feed",
-          label: "Feed",
-          Icon: FileText,
-          matchPaths: ["/member/feed", "/member/articles"],
-        },
-        {
           to: "/member/flamehub",
           label: "Flamehub",
           Icon: Flame,

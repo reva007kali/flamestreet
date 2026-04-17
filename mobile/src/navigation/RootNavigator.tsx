@@ -18,7 +18,6 @@ import CartScreen from "../screens/CartScreen";
 import CheckoutScreen from "../screens/CheckoutScreen";
 import OrdersScreen from "../screens/OrdersScreen";
 import OrderDetailScreen from "../screens/OrderDetailScreen";
-import ArticlesScreen from "../screens/ArticlesScreen";
 import ArticleDetailScreen from "../screens/ArticleDetailScreen";
 import FlamehubFeedScreen from "../screens/flamehub/FlamehubFeedScreen";
 import FlamehubCreatePostScreen from "../screens/flamehub/FlamehubCreatePostScreen";
@@ -178,7 +177,6 @@ function AppTabs() {
   const showStaffDashboard = isCashier;
   const showQueue = isCashier;
   const showOrders = !isCashier;
-  const showFeed = !isCashier;
   const cartCount = useCartStore((s) => s.totalItems());
 
   return (
@@ -206,7 +204,6 @@ function AppTabs() {
             Cart: "cart",
             Queue: "list",
             Orders: "receipt",
-            Feed: "compass",
           };
           const name = map[route.name] ?? "ellipse";
           const iconSize = size ?? 22;
@@ -292,13 +289,6 @@ function AppTabs() {
         <Tab.Screen
           name="Orders"
           component={isAdmin ? AdminOrdersScreen : OrdersScreen}
-        />
-      ) : null}
-      {showFeed ? (
-        <Tab.Screen
-          name="Feed"
-          component={isAdmin ? AdminArticlesScreen : ArticlesScreen}
-          options={{ title: "Feed" }}
         />
       ) : null}
     </Tab.Navigator>

@@ -9,11 +9,13 @@ import {
   CreditCard,
   FileText,
   ListOrdered,
-  Menu,
+  Menu as MenuIcon,
   ShoppingCart,
   Star,
   Tag,
   User,
+  ChevronRight,
+  Wallet,
 } from "lucide-react";
 
 export default function Home() {
@@ -29,9 +31,15 @@ export default function Home() {
     const p = user?.avatar;
     if (!p) return null;
     if (/^https?:\/\//i.test(p)) return p;
-    if (p.startsWith("uploads/")) return `${baseUrl}/${p}`;
-    return `${baseUrl}/storage/${p}`;
+    return p.startsWith("uploads/") ? `${baseUrl}/${p}` : `${baseUrl}/storage/${p}`;
   }, [baseUrl, user?.avatar]);
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
+  }, []);
 
   const meQuery = useQuery({
     queryKey: ["me"],
@@ -57,9 +65,7 @@ export default function Home() {
 
   const articlesQuery = useQuery({
     queryKey: ["articles", { pinned: true, limit: 5 }],
-    queryFn: async () =>
-      (await api.get("/articles", { params: { pinned: 1, limit: 5 } })).data
-        .articles,
+    queryFn: async () => (await api.get("/articles", { params: { pinned: 1, limit: 5 } })).data.articles,
   });
 
   const articleSlides = useMemo(() => {
@@ -67,24 +73,19 @@ export default function Home() {
     return list.map((a) => ({
       ...a,
       cover_image: a.cover_image
-        ? a.cover_image.startsWith("uploads/")
-          ? `${baseUrl}/${a.cover_image}`
-          : `${baseUrl}/storage/${a.cover_image}`
+        ? a.cover_image.startsWith("uploads/") ? `${baseUrl}/${a.cover_image}` : `${baseUrl}/storage/${a.cover_image}`
         : null,
     }));
   }, [articlesQuery.data, baseUrl]);
 
   const featuredQuery = useQuery({
     queryKey: ["products", { featured: true }],
-    queryFn: async () =>
-      (await api.get("/products", { params: { featured: 1 } })).data.data,
+    queryFn: async () => (await api.get("/products", { params: { featured: 1 } })).data.data,
   });
 
   const promoQuery = useQuery({
     queryKey: ["promo-banners", { audience: "member" }],
-    queryFn: async () =>
-      (await api.get("/promo-banners", { params: { audience: "member" } })).data
-        .banners,
+    queryFn: async () => (await api.get("/promo-banners", { params: { audience: "member" } })).data.banners,
   });
 
   const promoSlides = useMemo(() => {
@@ -94,290 +95,158 @@ export default function Home() {
       title: b.title,
       subtitle: b.subtitle,
       imageUrl: b.image
-        ? b.image.startsWith("uploads/")
-          ? `${baseUrl}/${b.image}`
-          : `${baseUrl}/storage/${b.image}`
+        ? b.image.startsWith("uploads/") ? `${baseUrl}/${b.image}` : `${baseUrl}/storage/${b.image}`
         : null,
       className: "bg-zinc-950",
     }));
   }, [promoQuery.data, baseUrl]);
 
   return (
-    <div className="space-y-8">
-      <section className="grid gap-5 lg:grid-cols-3">
-        {/* promotion banner */}
-        <div className=" sm:mx-0 lg:col-span-2">
+    <div className="space-y-10 pb-10">
+      {/* Header & Membership Section */}
+      <section className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex-1 lg:max-w-[65%]">
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold tracking-tight text-white">
+              {greeting}, <span className="text-[var(--accent)]">{user?.full_name?.split(' ')[0] ?? 'Member'}!</span>
+            </h1>
+            <p className="text-sm text-zinc-500">Ready for your healthy meal today?</p>
+          </div>
           <PromoCarousel
-            slides={
-              promoSlides.length
-                ? promoSlides
-                : [
-                    {
-                      kicker: "Flame Street",
-                      title: "Protein meals for post-workout",
-                      subtitle:
-                        "Order cepat, delivery terjadwal, dan kumpulkan point dari setiap pembelian.",
-                      className: "bg-gradient-to-br from-zinc-950 to-zinc-900",
-                    },
-                    {
-                      kicker: "Rewards",
-                      title: "Kumpulkan point dari setiap order",
-                      subtitle:
-                        "Point reward dari product, bisa dipakai untuk potongan saat redeem.",
-                      className:
-                        "bg-gradient-to-br from-emerald-950/40 to-zinc-950",
-                    },
-                    {
-                      kicker: "Promo",
-                      title: "Cek menu terbaru minggu ini",
-                      subtitle: "Klik Browse Menu untuk lihat item featured.",
-                      className:
-                        "bg-gradient-to-br from-zinc-950 to-emerald-950/30",
-                    },
-                  ]
-            }
+            slides={promoSlides.length ? promoSlides : [
+              { kicker: "Flame Street", title: "Protein meals for post-workout", subtitle: "Order cepat & kumpulkan point.", className: "bg-zinc-900 border border-zinc-800" }
+            ]}
           />
         </div>
 
-        {/* Member Profile */}
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 sm:p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="h-12 w-12 overflow-hidden rounded-full border border-zinc-800 bg-zinc-950">
+        {/* Member Card Style */}
+        <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 p-6 lg:w-80 flex flex-col justify-between shadow-2xl shadow-emerald-950/20">
+          <div className="absolute -right-4 -top-4 h-32 w-32 rounded-full bg-[var(--accent)] opacity-[0.03] blur-3xl" />
+          
+          <div className="relative z-10 flex items-center gap-3">
+             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border-2 border-zinc-800 bg-zinc-900 shadow-inner">
                 {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
+                  <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-zinc-300">
-                    {(user?.full_name ?? "U").slice(0, 1).toUpperCase()}
+                  <div className="flex h-full w-full items-center justify-center text-lg font-bold text-[var(--accent)]">
+                    {(user?.full_name ?? "U").charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">
-                  {user?.full_name ?? "Member"}
-                </div>
-                <div className="truncate text-xs text-zinc-500">
-                  @{user?.username ?? "-"}
-                </div>
+                <div className="truncate text-sm font-bold text-white uppercase tracking-tight">{user?.full_name ?? "Member"}</div>
+                <div className="text-[10px] font-medium text-zinc-500 uppercase tracking-widest">Premium Member</div>
               </div>
+          </div>
+
+          <div className="relative z-10 mt-10">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+               <Wallet size={12} className="text-[var(--accent)]" /> 
+               Flame Points
             </div>
-            <div className="shrink-0 text-right">
-              <div className="text-xs text-zinc-400">Points</div>
-              <div className="text-lg font-semibold">
-                {pointsQuery.data?.balance ??
-                  user?.member_profile?.total_points ??
-                  0}
-              </div>
-              <div className="text-xs text-zinc-400">
-                Rp{" "}
-                {Number(pointsQuery.data?.balance_rupiah ?? 0).toLocaleString(
-                  "id-ID",
-                )}
-              </div>
+            <div className="mt-1 text-3xl font-black text-white tabular-nums tracking-tighter">
+              {Number(pointsQuery.data?.balance ?? 0).toLocaleString("id-ID")}
+            </div>
+            <div className="text-xs font-semibold text-zinc-400">
+               ≈ Rp {Number(pointsQuery.data?.balance_rupiah ?? 0).toLocaleString("id-ID")}
             </div>
           </div>
-          {meQuery.isError ? (
-            <div className="mt-3 text-xs text-red-300">
-              Failed to load profile.
-            </div>
-          ) : null}
         </div>
       </section>
 
-      {/* Quick Menu */}
+      {/* Quick Menu - 4 Columns Grid */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Quick Menu</h2>
-        </div>
-        {/* menu grid list */}
-        <div className="grid grid-cols-3 gap-3">
-          <Link
-            to="/member/menu"
-            className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-4 text-center backdrop-blur hover:border-zinc-700"
-          >
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
-              <Menu className="h-5 w-5 text-zinc-300" />
-            </div>
-            <div className="mt-2 text-[11px] font-medium text-zinc-200">
-              Flame Meals{" "}
-            </div>
-          </Link>
-          <Link
-            to="/member/cart"
-            className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-4 text-center backdrop-blur hover:border-zinc-700"
-          >
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
-              <ShoppingCart className="h-5 w-5 text-zinc-300" />
-            </div>
-            <div className="mt-2 text-[11px] font-medium text-zinc-200">
-              Cart
-            </div>
-          </Link>
-          <Link
-            to="/member/checkout"
-            className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-4 text-center backdrop-blur hover:border-zinc-700"
-          >
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
-              <CreditCard className="h-5 w-5 text-zinc-300" />
-            </div>
-            <div className="mt-2 text-[11px] font-medium text-zinc-200">
-              Checkout
-            </div>
-          </Link>
-          <Link
-            to="/member/orders"
-            className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-4 text-center backdrop-blur hover:border-zinc-700"
-          >
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
-              <ListOrdered className="h-5 w-5 text-zinc-300" />
-            </div>
-            <div className="mt-2 text-[11px] font-medium text-zinc-200">
-              Orders
-            </div>
-          </Link>
-          <Link
-            to="/member/profile"
-            className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-4 text-center backdrop-blur hover:border-zinc-700"
-          >
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
-              <User className="h-5 w-5 text-zinc-300" />
-            </div>
-            <div className="mt-2 text-[11px] font-medium text-zinc-200">
-              Profile
-            </div>
-          </Link>
-          <Link
-            to="/member/feed"
-            className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-4 text-center backdrop-blur hover:border-zinc-700"
-          >
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
-              <FileText className="h-5 w-5 text-zinc-300" />
-            </div>
-            <div className="mt-2 text-[11px] font-medium text-zinc-200">
-              Feed
-            </div>
-          </Link>
-          <a
-            href="#categories"
-            className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-4 text-center backdrop-blur hover:border-zinc-700"
-          >
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
-              <Tag className="h-5 w-5 text-zinc-300" />
-            </div>
-            <div className="mt-2 text-[11px] font-medium text-zinc-200">
-              Explore
-            </div>
-          </a>
-          <a
-            href="#featured"
-            className="rounded-2xl border border-zinc-800/80 bg-zinc-900/50 p-4 text-center backdrop-blur hover:border-zinc-700"
-          >
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950">
-              <Star className="h-5 w-5 text-zinc-300" />
-            </div>
-            <div className="mt-2 text-[11px] font-medium text-zinc-200">
-              Featured
-            </div>
-          </a>
+        <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500">Quick Access</h2>
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { to: "/member/menu", label: "Menu", icon: MenuIcon },
+            { to: "/member/cart", label: "Cart", icon: ShoppingCart },
+            { to: "/member/checkout", label: "Checkout", icon: CreditCard },
+            { to: "/member/profile", label: "Profile", icon: User },
+          ].map((item, idx) => (
+            item.type === 'hash' ? (
+              <a key={idx} href={item.to} className="group flex flex-col items-center gap-2 rounded-2xl border border-zinc-800/40 bg-zinc-900/30 p-4 transition-all hover:border-[var(--accent)]/50 active:scale-95">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-950 text-zinc-400 group-hover:bg-[var(--accent)] group-hover:text-[var(--accent-foreground)] transition-colors">
+                  <item.icon size={18} />
+                </div>
+                <span className="text-[10px] font-bold text-zinc-400 group-hover:text-white">{item.label}</span>
+              </a>
+            ) : (
+              <Link key={idx} to={item.to} className="group flex flex-col items-center gap-2 rounded-2xl border border-zinc-800/40 bg-zinc-900/30 p-4 transition-all hover:border-[var(--accent)]/50 active:scale-95">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-950 text-zinc-400 group-hover:bg-[var(--accent)] group-hover:text-[var(--accent-foreground)] transition-colors">
+                  <item.icon size={18} />
+                </div>
+                <span className="text-[10px] font-bold text-zinc-400 group-hover:text-white">{item.label}</span>
+              </Link>
+            )
+          ))}
         </div>
       </section>
 
+      {/* Article Feed */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Feed</h2>
-          <Link
-            to="/member/feed"
-            className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)]"
-          >
-            View all
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white">Latest Feed</h2>
+          <Link to="/member/feed" className="flex items-center gap-1 text-xs font-bold text-[var(--accent)]">
+            Explore <ChevronRight size={14} />
           </Link>
         </div>
         <ArticleCarousel articles={articleSlides} basePath="/member" />
       </section>
 
+      {/* Recent Orders Cards */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Recent Orders</h2>
-          <Link
-            to="/member/orders"
-            className="text-sm text-[var(--accent)] hover:text-[var(--accent-hover)]"
-          >
-            View all
-          </Link>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white">Recent Orders</h2>
+          <Link to="/member/orders" className="text-xs font-bold text-zinc-500">History</Link>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3">
           {(ordersQuery.data?.data ?? []).slice(0, 3).map((o) => (
-            <Link
-              key={o.id}
-              to={`/orders/${o.order_number}`}
-              className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 hover:border-zinc-700"
-            >
-              <div className="font-medium">{o.order_number}</div>
-              <div className="mt-1 text-sm text-zinc-400 capitalize">
-                {o.status} • {o.payment_status}
+            <Link key={o.id} to={`/orders/${o.order_number}`} className="group relative flex flex-col gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 p-5 transition-all hover:border-zinc-700">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">#{o.order_number}</span>
+                <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${o.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-orange-500/10 text-orange-500'}`}>
+                  {o.status}
+                </span>
               </div>
-              <div className="mt-2 text-sm text-zinc-300">
+              <div className="text-lg font-bold text-white">
                 Rp {Number(o.total_amount ?? 0).toLocaleString("id-ID")}
               </div>
+              <div className="text-[10px] font-medium text-zinc-500 uppercase">{o.payment_status} • {new Date(o.created_at).toLocaleDateString()}</div>
             </Link>
           ))}
-          {ordersQuery.isLoading ? (
-            <div className="text-sm text-zinc-400">Loading...</div>
-          ) : null}
         </div>
       </section>
 
-      <section id="categories">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Categories</h2>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-          {(categoriesQuery.data ?? []).map((c) => (
-            <Link
-              key={c.id}
-              to={`/member/menu?category=${encodeURIComponent(c.slug)}`}
-              className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 hover:border-zinc-700"
-            >
-              <div className="font-medium">{c.name}</div>
-              {c.description ? (
-                <div className="mt-1 text-sm text-zinc-400">
-                  {c.description}
+      {/* Categories & Featured */}
+      <div className="grid gap-10 md:grid-cols-2">
+        <section id="categories">
+          <h2 className="mb-4 text-lg font-bold text-white">Categories</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {(categoriesQuery.data ?? []).map((c) => (
+              <Link key={c.id} to={`/member/menu?category=${encodeURIComponent(c.slug)}`} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 transition-all hover:border-[var(--accent)]">
+                <div className="text-sm font-bold text-white">{c.name}</div>
+                <div className="mt-1 text-[10px] text-zinc-500 line-clamp-1">{c.description || 'View products'}</div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section id="featured">
+          <h2 className="mb-4 text-lg font-bold text-white">Featured Products</h2>
+          <div className="space-y-3">
+            {(featuredQuery.data ?? []).slice(0, 4).map((p) => (
+              <Link key={p.id} to={`/member/product/${p.slug}`} className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-950 p-4 transition-all hover:bg-zinc-900">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-bold text-white">{p.name}</div>
+                  <div className="text-xs font-semibold text-[var(--accent)]">Rp {Number(p.price ?? 0).toLocaleString("id-ID")}</div>
                 </div>
-              ) : null}
-            </Link>
-          ))}
-          {categoriesQuery.isLoading ? (
-            <div className="text-sm text-zinc-400">Loading...</div>
-          ) : null}
-        </div>
-      </section>
-
-      <section id="featured">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Featured</h2>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-          {(featuredQuery.data ?? []).map((p) => (
-            <Link
-              key={p.id}
-              to={`/member/product/${p.slug}`}
-              className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 hover:border-zinc-700"
-            >
-              <div className="font-medium">{p.name}</div>
-              <div className="mt-1 text-sm text-zinc-400">
-                Rp {Number(p.price ?? 0).toLocaleString("id-ID")}
-              </div>
-            </Link>
-          ))}
-          {featuredQuery.isLoading ? (
-            <div className="text-sm text-zinc-400">Loading...</div>
-          ) : null}
-        </div>
-      </section>
+                <ChevronRight size={16} className="text-zinc-700" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

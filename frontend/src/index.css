@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --accent: #12ce21;
-  --accent-hover: #2ca30e;
+  --accent: #09dd61;
+  --accent-hover: #0ea351;
   --accent-foreground: #ffffff;
-  --accent-muted: rgba(16, 185, 129, 0.15);
-  --accent-border: rgba(28, 225, 14, 0.4);
+  --accent-muted: rgba(16, 185, 109, 0.15);
+  --accent-border: rgba(14, 225, 141, 0.4);
 }
 
 html,
@@ -16,6 +16,11 @@ body,
 
 body {
   margin: 0;
+  font-family: "Google sans flex", sans-serif;
+}
+
+.font-stencil {
+  font-family: "Big Shoulders Stencil", sans-serif;
 }
 
 .sidebar-scroll {

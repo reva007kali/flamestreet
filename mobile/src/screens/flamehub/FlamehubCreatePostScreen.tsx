@@ -93,7 +93,7 @@ export default function FlamehubCreatePostScreen() {
   }
 
   return (
-    <Screen>
+    <Screen headerShown={false} allowUnderHeader>
       <ScrollView
         contentContainerStyle={{
           padding: theme.spacing.md,

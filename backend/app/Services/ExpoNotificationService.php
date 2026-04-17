@@ -9,16 +9,16 @@ use Illuminate\Support\Facades\Log;
 
 class ExpoNotificationService
 {
-    public function upsertToken(int $userId, string $token, ?string $platform = null): void
+    public function upsertToken(int $userId, string $token, ?string $platform = null, string $provider = 'expo'): void
     {
         $token = trim($token);
-        if ($token === '' || strlen($token) > 200) {
+        if ($token === '' || strlen($token) > 512) {
             return;
         }
 
         PushToken::query()->updateOrCreate(
             ['token' => $token],
-            ['user_id' => $userId, 'platform' => $platform, 'last_seen_at' => now()],
+            ['user_id' => $userId, 'provider' => $provider, 'platform' => $platform, 'last_seen_at' => now()],
         );
     }
 
@@ -26,6 +26,7 @@ class ExpoNotificationService
     {
         $tokens = PushToken::query()
             ->where('user_id', $userId)
+            ->where('provider', 'expo')
             ->pluck('token')
             ->all();
 
@@ -41,6 +42,7 @@ class ExpoNotificationService
 
         $tokens = PushToken::query()
             ->whereIn('user_id', $userIds)
+            ->where('provider', 'expo')
             ->pluck('token')
             ->all();
 

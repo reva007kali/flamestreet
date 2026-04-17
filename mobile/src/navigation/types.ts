@@ -45,7 +45,6 @@ export type AppTabParamList = {
   Products: undefined;
   Cart: undefined;
   Orders: undefined;
-  Feed: undefined;
   Flamehub: undefined;
   Queue: { preset?: "all" | "unpaid" } | undefined;
 };

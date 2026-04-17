@@ -700,11 +700,6 @@ export default function HomeScreen() {
               >
                 Flame-news
               </Text>
-              <Pressable onPress={() => navigation.navigate("Feed")}>
-                <Text style={{ color: theme.colors.green, fontWeight: "800" }}>
-                  View all
-                </Text>
-              </Pressable>
             </View>
             {(articles as any[]).slice(0, 5).map((a: any) => {
               const img = toPublicUrl(a.cover_image);

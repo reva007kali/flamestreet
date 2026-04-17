@@ -84,7 +84,7 @@ class MeController extends Controller
     public function updatePushToken(Request $request)
     {
         $data = $request->validate([
-            'expo_push_token' => ['required', 'string', 'max:200'],
+            'expo_push_token' => ['required', 'string', 'max:512'],
             'platform' => ['nullable', 'string', 'max:20'],
         ]);
 
@@ -92,6 +92,7 @@ class MeController extends Controller
             (int) $request->user()->id,
             (string) $data['expo_push_token'],
             isset($data['platform']) ? (string) $data['platform'] : null,
+            'expo',
         );
 
         return response()->json(['ok' => true]);

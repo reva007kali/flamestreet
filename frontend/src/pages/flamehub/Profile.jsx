@@ -34,9 +34,9 @@ function Thumb({ post, basePath }) {
   return (
     <Link
       to={`${basePath}/flamehub/p/${post.id}`}
-      className="group relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-950/60 hover:border-zinc-700"
+      className="group relative overflow-hidden rounded-md border border-zinc-800/70 bg-zinc-950/60 hover:border-zinc-700"
     >
-      <div className="aspect-square w-full bg-black/30">
+      <div className="aspect-[3/5] w-full bg-black/30">
         {src ? (
           m?.type === "video" ? (
             <video
@@ -52,7 +52,7 @@ function Thumb({ post, basePath }) {
         ) : null}
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/5 to-transparent opacity-0 transition group-hover:opacity-100" />
-      <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-2 text-xs text-zinc-200/90">
+      <div className="absolute bottom-1.5 left-1.5 right-1.5 flex items-center justify-between gap-1 text-[10px] text-zinc-200/90">
         <div>♥ {post.like_count ?? 0}</div>
         <div>💬 {post.comment_count ?? 0}</div>
       </div>
@@ -191,7 +191,7 @@ export default function FlamehubProfile({ basePath }) {
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+      <div className="grid grid-cols-3 gap-1.5">
         {posts.map((p) => (
           <Thumb key={p.id} post={p} basePath={basePath} />
         ))}

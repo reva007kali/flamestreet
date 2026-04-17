@@ -32,6 +32,7 @@ import CourierDashboard from "@/pages/courier/Dashboard";
 import DeliveryDetail from "@/pages/courier/DeliveryDetail";
 import CashierQueue from "@/pages/cashier/Queue";
 import CashierOrders from "@/pages/cashier/Orders";
+import CashierDashboard from "@/pages/cashier/Dashboard";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminOrders from "@/pages/admin/Orders";
 import AdminCategories from "@/pages/admin/Categories";
@@ -131,6 +132,10 @@ export default function App() {
           <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
           <Route path="/trainer/referrals" element={<TrainerReferrals />} />
           <Route path="/trainer/points" element={<TrainerPoints />} />
+          <Route
+            path="/trainer/redeem"
+            element={<Navigate to="/trainer/points" replace />}
+          />
           <Route path="/trainer/profile" element={<TrainerProfile />} />
           <Route
             path="/trainer/feed"
@@ -197,8 +202,9 @@ export default function App() {
         <Route element={<CashierLayout />}>
           <Route
             path="/cashier"
-            element={<Navigate to="/cashier/queue" replace />}
+            element={<Navigate to="/cashier/dashboard" replace />}
           />
+          <Route path="/cashier/dashboard" element={<CashierDashboard />} />
           <Route path="/cashier/queue" element={<CashierQueue />} />
           <Route path="/cashier/orders" element={<CashierOrders />} />
         </Route>

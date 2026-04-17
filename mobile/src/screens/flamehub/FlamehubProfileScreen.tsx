@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
-import { Image, Pressable, ScrollView, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { api } from "../../lib/api";
 import { toPublicUrl } from "../../lib/assets";
 import { RootStackParamList } from "../../navigation/types";
@@ -18,6 +18,7 @@ export default function FlamehubProfileScreen() {
   const qc = useQueryClient();
   const myUsername = useAuthStore((s) => s.user?.username ?? null);
   const username = route.params.username;
+  const { width } = useWindowDimensions();
 
   const query = useQuery({
     queryKey: ["flamehub", "profile", username],
@@ -37,13 +38,15 @@ export default function FlamehubProfileScreen() {
 
   const user = query.data?.user;
   const posts = query.data?.posts ?? [];
+  const gridGap = 6;
+  const tileWidth = Math.floor((width - theme.spacing.md * 2 - gridGap * 2) / 3);
   const isMe = Boolean(
     myUsername && user?.username && myUsername === user.username,
   );
   const avatar = toPublicUrl(user?.avatar);
 
   return (
-    <Screen>
+    <Screen headerShown={false} allowUnderHeader>
       <ScrollView
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
       >
@@ -170,7 +173,7 @@ export default function FlamehubProfileScreen() {
           </Card>
         ) : null}
 
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: gridGap }}>
           {posts.map((p: any) => {
             const m = p.media?.[0];
             const src = toPublicUrl(m?.path);
@@ -181,9 +184,9 @@ export default function FlamehubProfileScreen() {
                   navigation.navigate("FlamehubPost", { id: Number(p.id) })
                 }
                 style={{
-                  width: "31%",
-                  aspectRatio: 1,
-                  borderRadius: 14,
+                  width: tileWidth,
+                  aspectRatio: 3 / 5,
+                  borderRadius: 8,
                   borderWidth: 1,
                   borderColor: theme.colors.border,
                   backgroundColor: "#0a0f0c",

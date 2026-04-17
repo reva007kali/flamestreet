@@ -12,8 +12,10 @@ use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
-    public function __construct(protected ExpoNotificationService $expoPush)
-    {
+    public function __construct(
+        protected ExpoNotificationService $expoPush,
+        protected FirebaseNotificationService $fcmPush,
+    ) {
     }
 
     public function notifyUser(int $userId, string $type, string $title, array $data = []): void
@@ -29,6 +31,7 @@ class NotificationService
                 $body = (string) $data['points'].' points';
             }
             $this->expoPush->sendToUser($userId, $title, $body, ['type' => $type] + $data);
+            $this->fcmPush->sendToUser($userId, $title, $body, ['type' => $type] + $data);
         } catch (\Throwable $e) {
             Log::warning('Broadcast failed: notifyUser', ['userId' => $userId, 'error' => $e->getMessage()]);
         }
@@ -45,6 +48,12 @@ class NotificationService
                 $name ? (string) $name : null,
                 ['type' => 'new_member_referred', 'member' => $member],
             );
+            $this->fcmPush->sendToUser(
+                $trainerUserId,
+                'Member baru',
+                $name ? (string) $name : null,
+                ['type' => 'new_member_referred', 'member' => $member],
+            );
         } catch (\Throwable $e) {
             Log::warning('Broadcast failed: notifyTrainerNewMember', ['trainerUserId' => $trainerUserId, 'error' => $e->getMessage()]);
         }
@@ -55,6 +64,18 @@ class NotificationService
         try {
             PointEarned::dispatch($trainerUserId, $amount, $totalPoints, $eventType, $orderId);
             $this->expoPush->sendToUser(
+                $trainerUserId,
+                'Point masuk',
+                ($amount >= 0 ? '+' : '').$amount.' fp',
+                [
+                    'type' => 'point_earned',
+                    'amount' => $amount,
+                    'total_points' => $totalPoints,
+                    'event_type' => $eventType,
+                    'order_id' => $orderId,
+                ],
+            );
+            $this->fcmPush->sendToUser(
                 $trainerUserId,
                 'Point masuk',
                 ($amount >= 0 ? '+' : '').$amount.' fp',
@@ -90,6 +111,12 @@ class NotificationService
                 $orderNumber ? '#'.$orderNumber : null,
                 ['type' => 'delivery_assigned', 'order_id' => $orderId, 'order_number' => $orderNumber],
             );
+            $this->fcmPush->sendToUser(
+                $courierUserId,
+                'Delivery baru',
+                $orderNumber ? '#'.$orderNumber : null,
+                ['type' => 'delivery_assigned', 'order_id' => $orderId, 'order_number' => $orderNumber],
+            );
         } catch (\Throwable $e) {
             Log::warning('Broadcast failed: notifyCourierNewDelivery', ['courierUserId' => $courierUserId, 'error' => $e->getMessage()]);
         }
@@ -101,6 +128,20 @@ class NotificationService
             OrderQueueUpdated::dispatch($counts, $eventType, $orderNumber, $status, $paymentStatus, $orderId);
             if ($eventType === 'created') {
                 $this->expoPush->sendToRoles(
+                    ['admin', 'cashier'],
+                    'Order masuk',
+                    $orderNumber ? '#'.$orderNumber : null,
+                    [
+                        'type' => 'order_queue',
+                        'counts' => $counts,
+                        'event_type' => $eventType,
+                        'order_number' => $orderNumber,
+                        'status' => $status,
+                        'payment_status' => $paymentStatus,
+                        'order_id' => $orderId,
+                    ],
+                );
+                $this->fcmPush->sendToRoles(
                     ['admin', 'cashier'],
                     'Order masuk',
                     $orderNumber ? '#'.$orderNumber : null,

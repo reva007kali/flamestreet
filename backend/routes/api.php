@@ -29,6 +29,8 @@ use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\Admin\ArticleController as AdminArticleController;
 use App\Http\Controllers\Api\Staff\OrderController as StaffOrderController;
 use App\Http\Controllers\Api\Staff\CourierController as StaffCourierController;
+use App\Http\Controllers\Api\Staff\DashboardController as StaffDashboardController;
+use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\Flamehub\FeedController as FlamehubFeedController;
 use App\Http\Controllers\Api\Flamehub\PostController as FlamehubPostController;
 use App\Http\Controllers\Api\Flamehub\CommentController as FlamehubCommentController;
@@ -49,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/me/avatar', [MeController::class, 'updateAvatar'])->middleware('throttle:uploads');
     Route::delete('/me/avatar', [MeController::class, 'deleteAvatar']);
     Route::put('/me/push-token', [MeController::class, 'updatePushToken']);
+    Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::get('/member/points', [MemberPointController::class, 'show'])->middleware('role:member');
     Route::get('/member/points/history', [MemberPointController::class, 'history'])->middleware('role:member');
 
@@ -102,6 +105,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::prefix('staff')->middleware('role:admin|cashier')->group(function () {
+        Route::get('/dashboard', StaffDashboardController::class);
         Route::get('/couriers', [StaffCourierController::class, 'index']);
         Route::get('/orders/counts', [StaffOrderController::class, 'counts']);
         Route::get('/orders', [StaffOrderController::class, 'index']);

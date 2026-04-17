@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   useInfiniteQuery,
@@ -7,6 +7,8 @@ import {
 } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import PostCard from "@/pages/flamehub/components/PostCard";
+import CommentsSheet from "@/pages/flamehub/components/CommentsSheet";
+import { Plus, Search, Loader2, Sparkles } from "lucide-react";
 
 async function shareLink(url) {
   const full = `${window.location.origin}${url}`;
@@ -28,6 +30,8 @@ async function shareLink(url) {
 export default function FlamehubFeed({ basePath }) {
   const qc = useQueryClient();
   const [likingId, setLikingId] = useState(null);
+  const [activePostId, setActivePostId] = useState(null);
+  const [commentsOpen, setCommentsOpen] = useState(false);
 
   const feedQuery = useInfiniteQuery({
     queryKey: ["flamehub", "feed"],
@@ -45,6 +49,21 @@ export default function FlamehubFeed({ basePath }) {
     const pages = feedQuery.data?.pages ?? [];
     return pages.flatMap((p) => p?.data ?? []);
   }, [feedQuery.data]);
+
+  // UX: Auto-fetch next page when scrolling to bottom
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + window.scrollY >= document.body.offsetHeight - 500 &&
+        feedQuery.hasNextPage &&
+        !feedQuery.isFetchingNextPage
+      ) {
+        feedQuery.fetchNextPage();
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [feedQuery]);
 
   const likeMutation = useMutation({
     mutationFn: async ({ postId, like }) => {
@@ -87,68 +106,104 @@ export default function FlamehubFeed({ basePath }) {
   });
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-emerald-300/80">
-            Flamehub
+    <div className="mx-auto max-w-xl pb-20">
+      {/* Header Statis / App Bar Style */}
+      <div className="sticky top-0 z-20 mb-6 flex items-center justify-between border-b border-zinc-900 bg-zinc-950/80 py-4 backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center">
+            <img src="/logo-sm.png" alt="" />
           </div>
-          <h1 className="mt-1 text-2xl font-black text-zinc-100">Feed</h1>
+          <h1 className="text-xl font-black tracking-tight text-white uppercase italic">
+            Flamehub
+          </h1>
         </div>
+        
         <div className="flex items-center gap-2">
           <Link
             to={`${basePath}/flamehub/search`}
-            className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-700"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-zinc-400 hover:text-white transition-colors"
           >
-            Search
+            <Search size={20} />
           </Link>
           <Link
             to={`${basePath}/flamehub/new`}
-            className="rounded-xl border border-emerald-400/35 bg-emerald-400/10 px-3 py-2 text-sm font-semibold text-emerald-200 shadow-[0_0_30px_rgba(34,197,94,0.12)] hover:bg-emerald-400/15"
+            className="flex items-center gap-2 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-bold text-[var(--accent-foreground)] shadow-lg shadow-[var(--accent)]/20 hover:brightness-110 active:scale-95 transition-all"
           >
-            New Post
+            <Plus size={18} strokeWidth={3} />
+            <span className="hidden sm:inline">Post</span>
           </Link>
         </div>
       </div>
 
-      {feedQuery.isLoading ? (
-        <div className="text-sm text-zinc-400">Loading…</div>
-      ) : null}
-      {feedQuery.isError ? (
-        <div className="text-sm text-red-300">
-          Failed to load Flamehub feed.
+      {/* Status & Loading State */}
+      {feedQuery.isLoading && (
+        <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+          <Loader2 className="mb-4 h-8 w-8 animate-spin text-[var(--accent)]" />
+          <p className="text-sm font-medium animate-pulse">Gathering latest updates...</p>
         </div>
-      ) : null}
+      )}
 
-      <div className="space-y-4">
+      {feedQuery.isError && (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6 text-center">
+          <p className="text-sm font-semibold text-red-400">Failed to load feed</p>
+          <button 
+            onClick={() => feedQuery.refetch()}
+            className="mt-2 text-xs font-bold text-white underline underline-offset-4"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {/* Post List */}
+      <div className="space-y-2">
         {items.map((p) => (
-          <PostCard
-            key={p.id}
-            post={p}
-            basePath={basePath}
-            liking={likingId === p.id}
-            onToggleLike={(post) =>
-              likeMutation.mutate({ postId: post.id, like: !post.liked_by_me })
-            }
-            onShare={(url) => shareLink(url)}
-          />
+          <div key={p.id} className="group transition-all">
+            <PostCard
+              post={p}
+              basePath={basePath}
+              liking={likingId === p.id}
+              onToggleLike={(post) =>
+                likeMutation.mutate({ postId: post.id, like: !post.liked_by_me })
+              }
+              onOpenComments={(post) => {
+                setActivePostId(post.id);
+                setCommentsOpen(true);
+              }}
+              onShare={(url) => shareLink(url)}
+            />
+            {/* Divider ala Threads/IG */}
+            <div className="mx-auto h-[1px] w-[95%] bg-zinc-900 group-last:hidden" />
+          </div>
         ))}
       </div>
 
-      <div className="flex justify-center">
+      {/* Infinite Scroll Indicator */}
+      <div className="mt-10 flex h-20 items-center justify-center">
         {feedQuery.hasNextPage ? (
-          <button
-            type="button"
-            className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-4 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-700 disabled:opacity-50"
-            onClick={() => feedQuery.fetchNextPage()}
-            disabled={feedQuery.isFetchingNextPage}
-          >
-            {feedQuery.isFetchingNextPage ? "Loading…" : "Load more"}
-          </button>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-600">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading more stories
+          </div>
         ) : (
-          <div className="text-xs text-zinc-500">End of feed</div>
+          !feedQuery.isLoading && (
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-[1px] w-12 bg-zinc-800" />
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-700">
+                You're all caught up
+              </p>
+            </div>
+          )
         )}
       </div>
+
+      {/* Sheet Komentar */}
+      <CommentsSheet
+        basePath={basePath}
+        postId={activePostId}
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+      />
     </div>
   );
 }

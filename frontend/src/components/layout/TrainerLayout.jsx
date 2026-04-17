@@ -25,12 +25,6 @@ export default function TrainerLayout() {
         },
         { to: "/trainer/points", label: "Points", Icon: Coins },
         {
-          to: "/trainer/feed",
-          label: "Feed",
-          Icon: FileText,
-          matchPaths: ["/trainer/feed", "/trainer/articles"],
-        },
-        {
           to: "/trainer/flamehub",
           label: "Flamehub",
           Icon: Flame,

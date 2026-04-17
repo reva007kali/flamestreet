@@ -40,7 +40,7 @@ export default function FlamehubSearchScreen() {
   const rows = useMemo(() => query.data ?? [], [query.data]);
 
   return (
-    <Screen>
+    <Screen headerShown={false} allowUnderHeader>
       <View style={{ padding: theme.spacing.md, gap: 12 }}>
         <View
           style={{

@@ -19,6 +19,7 @@ class CourierController extends Controller
     {
         $orders = Order::query()
             ->where('courier_id', $request->user()->id)
+            ->with('items')
             ->orderByDesc('id')
             ->paginate(20);
 

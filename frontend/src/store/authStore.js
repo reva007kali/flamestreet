@@ -8,7 +8,15 @@ export const useAuthStore = create(
       user: null,
       setSession: (token, user) => set({ token, user }),
       setUser: (user) => set({ user }),
-      logout: () => set({ token: null, user: null }),
+      logout: () => {
+        set({ token: null, user: null })
+        try {
+          localStorage.removeItem('flamestreet_auth')
+        } catch {}
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.replace('/login')
+        }
+      },
       hasRole: (role) => {
         const roles = get().user?.roles ?? []
         return roles.includes(role)
@@ -17,4 +25,3 @@ export const useAuthStore = create(
     { name: 'flamestreet_auth' },
   ),
 )
-

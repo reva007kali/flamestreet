@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '@/lib/axios'
 import ModifierSelector from '@/components/order/ModifierSelector'
-import { useCartStore } from '@/store/cartStore'
+import { addToCart } from '@/lib/addToCart'
 
 function formatNutritionKey(key) {
   const k = String(key ?? '')
@@ -23,7 +23,6 @@ function hasCompleteModifiers(product, selectedIds) {
 
 export default function ProductDetail({ basePath = '/member' }) {
   const { slug } = useParams()
-  const addItem = useCartStore((s) => s.addItem)
   const [quantity, setQuantity] = useState(1)
   const [modifierOptionIds, setModifierOptionIds] = useState([])
 
@@ -120,7 +119,7 @@ export default function ProductDetail({ basePath = '/member' }) {
           ].join(' ')}
           onClick={() => {
             if (!canAddToCart) return
-            addItem({ product: p, quantity, modifierOptionIds, itemNotes: '' })
+            addToCart({ product: p, quantity, modifierOptionIds, itemNotes: '' })
           }}
           disabled={!canAddToCart}
         >

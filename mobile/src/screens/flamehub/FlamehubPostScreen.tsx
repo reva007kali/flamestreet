@@ -124,7 +124,7 @@ export default function FlamehubPostScreen() {
   });
 
   return (
-    <Screen>
+    <Screen headerShown={false} allowUnderHeader>
       <ScrollView
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         keyboardShouldPersistTaps="handled"
