@@ -2,6 +2,8 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { useQueueStore } from "@/store/queueStore";
 import { useState } from "react";
+import { api } from "@/lib/axios";
+import { getOrCreateDeviceId } from "@/lib/deviceId";
 import {
   Flame,
   LayoutDashboard,
@@ -33,6 +35,14 @@ export default function CashierLayout() {
   const counts = useQueueStore((s) => s.counts);
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const handleLogout = async () => {
+    try {
+      await api.delete("/device-tokens", {
+        data: { platform: "web", device_id: getOrCreateDeviceId() },
+      });
+    } catch {}
+    logout();
+  };
 
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
@@ -133,7 +143,7 @@ export default function CashierLayout() {
 
         <div className="shrink-0 border-t border-zinc-800/70 p-2 pb-4 pt-3">
           <button
-            onClick={() => logout()}
+            onClick={() => handleLogout()}
             className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-zinc-500 transition-colors hover:bg-red-950/50 hover:text-red-400"
             type="button"
           >

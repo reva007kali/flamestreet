@@ -1,7 +1,9 @@
-import { Link, Outlet, useLocation } from 'react-router-dom'
-import { useAuthStore } from '@/store/authStore'
-import { useQueueStore } from '@/store/queueStore'
-import { useState } from 'react'
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { useAuthStore } from "@/store/authStore";
+import { useQueueStore } from "@/store/queueStore";
+import { useState } from "react";
+import { api } from "@/lib/axios";
+import { getOrCreateDeviceId } from "@/lib/deviceId";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -22,73 +24,82 @@ import {
   Flame,
   Menu,
   X,
-} from 'lucide-react'
+} from "lucide-react";
 
 const NAV_GROUPS = [
   {
-    title: 'Ringkasan',
+    title: "Ringkasan",
     items: [
-      { to: '/admin/dashboard', label: 'Dashboard', Icon: LayoutDashboard },
+      { to: "/admin/dashboard", label: "Dashboard", Icon: LayoutDashboard },
     ],
   },
   {
-    title: 'Order',
+    title: "Order",
     items: [
-      { to: '/admin/orders', label: 'Orderan', Icon: ShoppingCart },
-      { to: '/cashier/queue', label: 'Antrian Orderan', Icon: ListOrdered },
+      { to: "/admin/orders", label: "Orderan", Icon: ShoppingCart },
+      { to: "/cashier/queue", label: "Antrian Orderan", Icon: ListOrdered },
     ],
   },
   {
-    title: 'Konten',
+    title: "Konten",
     items: [
-      { to: '/admin/articles', label: 'Articles', Icon: Newspaper },
-      { to: '/admin/promo-banners', label: 'Promo Banner', Icon: Image },
+      { to: "/admin/articles", label: "Articles", Icon: Newspaper },
+      { to: "/admin/promo-banners", label: "Promo Banner", Icon: Image },
     ],
   },
   {
-    title: 'Katalog',
+    title: "Katalog",
     items: [
-      { to: '/admin/categories', label: 'Categories', Icon: Tag },
-      { to: '/admin/products', label: 'Products', Icon: Package },
+      { to: "/admin/categories", label: "Categories", Icon: Tag },
+      { to: "/admin/products", label: "Products", Icon: Package },
     ],
   },
   {
-    title: 'Orang',
+    title: "Orang",
     items: [
-      { to: '/admin/users', label: 'Users', Icon: Users },
-      { to: '/admin/members', label: 'Members', Icon: Users },
-      { to: '/admin/trainers', label: 'Trainers', Icon: Dumbbell },
+      { to: "/admin/users", label: "Users", Icon: Users },
+      { to: "/admin/members", label: "Members", Icon: Users },
+      { to: "/admin/trainers", label: "Trainers", Icon: Dumbbell },
     ],
   },
   {
-    title: 'Lokasi',
-    items: [
-      { to: '/admin/gyms', label: 'Gyms', Icon: Building2 },
-    ],
+    title: "Lokasi",
+    items: [{ to: "/admin/gyms", label: "Gyms", Icon: Building2 }],
   },
   {
-    title: 'Konfigurasi',
+    title: "Konfigurasi",
     items: [
-      { to: '/admin/payment-methods', label: 'Metode Pembayaran', Icon: CreditCard },
-      { to: '/admin/redeems', label: 'Redeem Approval', Icon: Wallet },
-      { to: '/admin/point-settings', label: 'Point Settings', Icon: Settings2 },
+      {
+        to: "/admin/payment-methods",
+        label: "Metode Pembayaran",
+        Icon: CreditCard,
+      },
+      { to: "/admin/redeems", label: "Redeem Approval", Icon: Wallet },
+      { to: "/admin/point-settings", label: "Point Settings", Icon: Settings2 },
     ],
   },
-]
+];
 
 export default function AdminLayout() {
-  const logout = useAuthStore((s) => s.logout)
-  const location = useLocation()
-  const counts = useQueueStore((s) => s.counts)
+  const logout = useAuthStore((s) => s.logout);
+  const location = useLocation();
+  const counts = useQueueStore((s) => s.counts);
+  const handleLogout = async () => {
+    try {
+      await api.delete("/device-tokens", {
+        data: { platform: "web", device_id: getOrCreateDeviceId() },
+      });
+    } catch {}
+    logout();
+  };
 
   // Desktop: collapsed state
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(false);
   // Mobile: drawer open state
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
-
       {/* ─── Mobile overlay ─── */}
       {mobileOpen && (
         <div
@@ -101,31 +112,31 @@ export default function AdminLayout() {
       <aside
         className={[
           // base
-          'fixed inset-y-0 left-0 z-30 flex flex-col bg-zinc-900 border-r border-zinc-800/70',
-          'transition-all duration-200 ease-in-out',
+          "fixed inset-y-0 left-0 z-30 flex flex-col bg-zinc-900 border-r border-zinc-800/70",
+          "transition-all duration-200 ease-in-out",
           // mobile: slide in/out
-          mobileOpen ? 'translate-x-0' : '-translate-x-full',
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
           // desktop: sticky full height, width toggles
-          'md:sticky md:top-0 md:h-screen md:translate-x-0',
-          collapsed ? 'md:w-[60px]' : 'md:w-[220px]',
+          "md:sticky md:top-0 md:h-screen md:translate-x-0",
+          collapsed ? "md:w-[60px]" : "md:w-[220px]",
           // mobile always full width sidebar
-          'w-[220px]',
-        ].join(' ')}
+          "w-[220px]",
+        ].join(" ")}
       >
         {/* Logo row */}
         <div
           className={[
-            'flex h-14 shrink-0 items-center border-b border-zinc-800/70',
-            collapsed ? 'md:justify-center px-3' : 'justify-between px-4',
-          ].join(' ')}
+            "flex h-14 shrink-0 items-center border-b border-zinc-800/70",
+            collapsed ? "md:justify-center px-3" : "justify-between px-4",
+          ].join(" ")}
         >
           {/* Logo — hidden when collapsed on desktop */}
           <Link
             to="/admin"
             className={[
-              'flex items-center gap-2.5',
-              collapsed ? 'md:hidden' : '',
-            ].join(' ')}
+              "flex items-center gap-2.5",
+              collapsed ? "md:hidden" : "",
+            ].join(" ")}
             onClick={() => setMobileOpen(false)}
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]">
@@ -150,15 +161,16 @@ export default function AdminLayout() {
           <button
             onClick={() => setCollapsed((c) => !c)}
             className={[
-              'hidden md:flex items-center justify-center rounded-md',
-              'h-7 w-7 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300',
-              collapsed ? 'mx-auto' : '',
-            ].join(' ')}
+              "hidden md:flex items-center justify-center rounded-md",
+              "h-7 w-7 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300",
+              collapsed ? "mx-auto" : "",
+            ].join(" ")}
           >
-            {collapsed
-              ? <ChevronRight className="h-4 w-4" />
-              : <ChevronLeft className="h-4 w-4" />
-            }
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
           </button>
 
           {/* Close button — mobile */}
@@ -176,17 +188,19 @@ export default function AdminLayout() {
             <div key={group.title} className="space-y-1">
               <div
                 className={[
-                  'px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600',
-                  collapsed ? 'md:hidden' : '',
-                ].join(' ')}
+                  "px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600",
+                  collapsed ? "md:hidden" : "",
+                ].join(" ")}
               >
                 {group.title}
               </div>
 
               {group.items.map(({ to, label, Icon }) => {
                 const isActive =
-                  location.pathname === to || location.pathname.startsWith(to + '/')
-                const badgeCount = to === '/cashier/queue' ? (counts?.queue_unpaid ?? 0) : 0
+                  location.pathname === to ||
+                  location.pathname.startsWith(to + "/");
+                const badgeCount =
+                  to === "/cashier/queue" ? (counts?.queue_unpaid ?? 0) : 0;
 
                 return (
                   <Link
@@ -195,13 +209,13 @@ export default function AdminLayout() {
                     onClick={() => setMobileOpen(false)}
                     title={collapsed ? label : undefined}
                     className={[
-                      'group relative flex items-center gap-3 rounded-lg py-2 text-[13px] font-medium',
-                      'transition-colors duration-150',
-                      collapsed ? 'md:justify-center md:px-0 px-3' : 'px-3',
+                      "group relative flex items-center gap-3 rounded-lg py-2 text-[13px] font-medium",
+                      "transition-colors duration-150",
+                      collapsed ? "md:justify-center md:px-0 px-3" : "px-3",
                       isActive
-                        ? 'bg-zinc-800 text-zinc-50'
-                        : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200',
-                    ].join(' ')}
+                        ? "bg-zinc-800 text-zinc-50"
+                        : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200",
+                    ].join(" ")}
                   >
                     {isActive && (
                       <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)]" />
@@ -209,14 +223,14 @@ export default function AdminLayout() {
 
                     <Icon
                       className={[
-                        'h-[15px] w-[15px] shrink-0 transition-colors',
+                        "h-[15px] w-[15px] shrink-0 transition-colors",
                         isActive
-                          ? 'text-[var(--accent)]'
-                          : 'text-zinc-500 group-hover:text-zinc-300',
-                      ].join(' ')}
+                          ? "text-[var(--accent)]"
+                          : "text-zinc-500 group-hover:text-zinc-300",
+                      ].join(" ")}
                     />
 
-                    <span className={collapsed ? 'md:hidden' : ''}>
+                    <span className={collapsed ? "md:hidden" : ""}>
                       {label}
                     </span>
 
@@ -234,7 +248,7 @@ export default function AdminLayout() {
                       <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)] md:block" />
                     )}
                   </Link>
-                )
+                );
               })}
             </div>
           ))}
@@ -243,23 +257,22 @@ export default function AdminLayout() {
         {/* Logout */}
         <div className="shrink-0 border-t border-zinc-800/70 p-2 pb-4 pt-3">
           <button
-            onClick={() => logout()}
-            title={collapsed ? 'Logout' : undefined}
+            onClick={() => handleLogout()}
+            title={collapsed ? "Logout" : undefined}
             className={[
-              'group flex w-full items-center gap-3 rounded-lg py-2 text-[13px] font-medium',
-              'text-zinc-500 transition-colors hover:bg-red-950/50 hover:text-red-400',
-              collapsed ? 'md:justify-center md:px-0 px-3' : 'px-3',
-            ].join(' ')}
+              "group flex w-full items-center gap-3 rounded-lg py-2 text-[13px] font-medium",
+              "text-zinc-500 transition-colors hover:bg-red-950/50 hover:text-red-400",
+              collapsed ? "md:justify-center md:px-0 px-3" : "px-3",
+            ].join(" ")}
           >
             <LogOut className="h-[15px] w-[15px] shrink-0" />
-            <span className={collapsed ? 'md:hidden' : ''}>Logout</span>
+            <span className={collapsed ? "md:hidden" : ""}>Logout</span>
           </button>
         </div>
       </aside>
 
       {/* ─── Main area ─── */}
       <div className="flex min-w-0 flex-1 flex-col">
-
         {/* Topbar */}
         <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-zinc-800/70 bg-zinc-950/80 px-4 backdrop-blur-sm md:px-6">
           {/* Hamburger — mobile only */}
@@ -280,11 +293,11 @@ export default function AdminLayout() {
         </main>
       </div>
     </div>
-  )
+  );
 }
 
 function Breadcrumb({ pathname }) {
-  const segments = pathname.replace('/admin', '').split('/').filter(Boolean)
+  const segments = pathname.replace("/admin", "").split("/").filter(Boolean);
   return (
     <nav className="flex items-center gap-1.5 text-[12px] text-zinc-500">
       <Link to="/admin" className="transition-colors hover:text-zinc-300">
@@ -293,11 +306,17 @@ function Breadcrumb({ pathname }) {
       {segments.map((seg, i) => (
         <span key={i} className="flex items-center gap-1.5">
           <span className="text-zinc-700">/</span>
-          <span className={i === segments.length - 1 ? 'text-zinc-300 capitalize' : 'capitalize'}>
-            {seg.replace(/-/g, ' ')}
+          <span
+            className={
+              i === segments.length - 1
+                ? "text-zinc-300 capitalize"
+                : "capitalize"
+            }
+          >
+            {seg.replace(/-/g, " ")}
           </span>
         </span>
       ))}
     </nav>
-  )
+  );
 }

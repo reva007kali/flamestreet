@@ -1,19 +1,29 @@
-import { Link, Outlet, useLocation } from 'react-router-dom'
-import { useAuthStore } from '@/store/authStore'
-import { useState } from 'react'
-import { Flame, LayoutDashboard, LogOut, Menu, Truck, X } from 'lucide-react'
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { useAuthStore } from "@/store/authStore";
+import { useState } from "react";
+import { Flame, LayoutDashboard, LogOut, Menu, Truck, X } from "lucide-react";
+import { api } from "@/lib/axios";
+import { getOrCreateDeviceId } from "@/lib/deviceId";
 
 const NAV_GROUPS = [
   {
-    title: 'Kurir',
-    items: [{ to: '/courier/dashboard', label: 'Deliveries', Icon: Truck }],
+    title: "Kurir",
+    items: [{ to: "/courier/dashboard", label: "Deliveries", Icon: Truck }],
   },
-]
+];
 
 export default function CourierLayout() {
-  const logout = useAuthStore((s) => s.logout)
-  const location = useLocation()
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const logout = useAuthStore((s) => s.logout);
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const handleLogout = async () => {
+    try {
+      await api.delete("/device-tokens", {
+        data: { platform: "web", device_id: getOrCreateDeviceId() },
+      });
+    } catch {}
+    logout();
+  };
 
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
@@ -26,12 +36,12 @@ export default function CourierLayout() {
 
       <aside
         className={[
-          'fixed inset-y-0 left-0 z-30 flex flex-col bg-zinc-900 border-r border-zinc-800/70',
-          'transition-all duration-200 ease-in-out',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full',
-          'md:sticky md:top-0 md:h-screen md:translate-x-0',
-          'md:w-[220px] w-[220px]',
-        ].join(' ')}
+          "fixed inset-y-0 left-0 z-30 flex flex-col bg-zinc-900 border-r border-zinc-800/70",
+          "transition-all duration-200 ease-in-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          "md:sticky md:top-0 md:h-screen md:translate-x-0",
+          "md:w-[220px] w-[220px]",
+        ].join(" ")}
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800/70 px-4">
           <Link
@@ -65,33 +75,36 @@ export default function CourierLayout() {
 
               {group.items.map(({ to, label, Icon }) => {
                 const isActive =
-                  location.pathname === to || location.pathname.startsWith(to + '/')
+                  location.pathname === to ||
+                  location.pathname.startsWith(to + "/");
                 return (
                   <Link
                     key={to}
                     to={to}
                     onClick={() => setMobileOpen(false)}
                     className={[
-                      'group relative flex items-center gap-3 rounded-lg py-2 text-[13px] font-medium',
-                      'transition-colors duration-150',
-                      'px-3',
+                      "group relative flex items-center gap-3 rounded-lg py-2 text-[13px] font-medium",
+                      "transition-colors duration-150",
+                      "px-3",
                       isActive
-                        ? 'bg-zinc-800 text-zinc-50'
-                        : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200',
-                    ].join(' ')}
+                        ? "bg-zinc-800 text-zinc-50"
+                        : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200",
+                    ].join(" ")}
                   >
                     {isActive && (
                       <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--accent)]" />
                     )}
                     <Icon
                       className={[
-                        'h-[15px] w-[15px] shrink-0 transition-colors',
-                        isActive ? 'text-[var(--accent)]' : 'text-zinc-500 group-hover:text-zinc-300',
-                      ].join(' ')}
+                        "h-[15px] w-[15px] shrink-0 transition-colors",
+                        isActive
+                          ? "text-[var(--accent)]"
+                          : "text-zinc-500 group-hover:text-zinc-300",
+                      ].join(" ")}
                     />
                     <span>{label}</span>
                   </Link>
-                )
+                );
               })}
             </div>
           ))}
@@ -99,7 +112,7 @@ export default function CourierLayout() {
 
         <div className="shrink-0 border-t border-zinc-800/70 p-2 pb-4 pt-3">
           <button
-            onClick={() => logout()}
+            onClick={() => handleLogout()}
             className="group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-zinc-500 transition-colors hover:bg-red-950/50 hover:text-red-400"
             type="button"
           >
@@ -126,11 +139,11 @@ export default function CourierLayout() {
         </main>
       </div>
     </div>
-  )
+  );
 }
 
 function Breadcrumb({ pathname }) {
-  const segments = pathname.replace('/courier', '').split('/').filter(Boolean)
+  const segments = pathname.replace("/courier", "").split("/").filter(Boolean);
   return (
     <nav className="flex items-center gap-1.5 text-[12px] text-zinc-500">
       <Link to="/courier" className="transition-colors hover:text-zinc-300">
@@ -139,11 +152,17 @@ function Breadcrumb({ pathname }) {
       {segments.map((seg, i) => (
         <span key={i} className="flex items-center gap-1.5">
           <span className="text-zinc-700">/</span>
-          <span className={i === segments.length - 1 ? 'text-zinc-300 capitalize' : 'capitalize'}>
-            {seg.replace(/-/g, ' ')}
+          <span
+            className={
+              i === segments.length - 1
+                ? "text-zinc-300 capitalize"
+                : "capitalize"
+            }
+          >
+            {seg.replace(/-/g, " ")}
           </span>
         </span>
       ))}
     </nav>
-  )
+  );
 }

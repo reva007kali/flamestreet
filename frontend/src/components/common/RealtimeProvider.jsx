@@ -12,6 +12,7 @@ import { useNotifStore } from "@/store/notifStore";
 import { useQueueStore } from "@/store/queueStore";
 import { api } from "@/lib/axios";
 import { playNotifySound } from "@/lib/notifySound";
+import { getOrCreateDeviceId } from "@/lib/deviceId";
 import {
   messaging,
   onMessage,
@@ -110,7 +111,13 @@ export function RealtimeProvider({ children }) {
       .then((fcmToken) => {
         if (cancelled) return;
         if (!fcmToken) return;
-        return api.post("/device-tokens", { token: fcmToken, platform: "web" });
+        return api.post("/device-tokens", {
+          token: fcmToken,
+          platform: "web",
+          device_id: getOrCreateDeviceId(),
+          user_agent:
+            typeof navigator !== "undefined" ? String(navigator.userAgent) : "",
+        });
       })
       .catch(() => {});
     return () => {
