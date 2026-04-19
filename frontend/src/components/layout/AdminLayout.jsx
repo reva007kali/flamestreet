@@ -13,6 +13,8 @@ import {
   Dumbbell,
   Building2,
   Settings2,
+  Truck,
+  BadgeDollarSign,
   CreditCard,
   ListOrdered,
   Image,
@@ -64,7 +66,10 @@ const NAV_GROUPS = [
   },
   {
     title: "Lokasi",
-    items: [{ to: "/admin/gyms", label: "Gyms", Icon: Building2 }],
+    items: [
+      { to: "/admin/gyms", label: "Gyms", Icon: Building2 },
+      { to: "/admin/delivery-branches", label: "Cabang Delivery", Icon: Truck },
+    ],
   },
   {
     title: "Konfigurasi",
@@ -75,6 +80,7 @@ const NAV_GROUPS = [
         Icon: CreditCard,
       },
       { to: "/admin/redeems", label: "Redeem Approval", Icon: Wallet },
+      { to: "/admin/delivery-pricing", label: "Ongkir Delivery", Icon: BadgeDollarSign },
       { to: "/admin/point-settings", label: "Point Settings", Icon: Settings2 },
     ],
   },

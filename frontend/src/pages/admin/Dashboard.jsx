@@ -49,11 +49,15 @@ const COLORS = [
 ];
 
 export default function Dashboard() {
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const toYmd = (d) =>
+    `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
   const now = useMemo(() => new Date(), []);
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const today = useMemo(() => toYmd(new Date()), []);
   const defaultFrom = useMemo(() => {
     const d = new Date(now.getFullYear(), now.getMonth(), 1);
-    return d.toISOString().slice(0, 10);
+    return toYmd(d);
   }, [now]);
   const defaultTo = useMemo(() => today, [today]);
 
@@ -71,8 +75,8 @@ export default function Dashboard() {
         month: "long",
         year: "numeric",
       });
-      const f = new Date(y, m, 1).toISOString().slice(0, 10);
-      const t = new Date(y, m + 1, 0).toISOString().slice(0, 10);
+      const f = toYmd(new Date(y, m, 1));
+      const t = toYmd(new Date(y, m + 1, 0));
       out.push({
         label,
         from: f,

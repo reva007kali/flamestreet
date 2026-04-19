@@ -27,16 +27,16 @@ export default function Cart({ basePath = '/member' }) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl pb-32">
+    <div className="mx-auto max-w-2xl pb-32 px-3">
       {/* Header */}
       <div className="mb-8 flex items-end justify-between px-1">
         <div>
-          <h1 className="text-2xl font-black italic tracking-tight text-white uppercase flex items-center gap-2">
+          <h1 className="text-lg font-bold italic tracking-tight text-white uppercase flex items-center gap-2">
             <Sparkles className="text-[var(--accent)]" size={24} fill="currentColor" />
-            Your Basket
+            Cek dulu belanjaan kamu ya!
           </h1>
           <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-1">
-            {items.length} items ready to fuel you
+            {items.length} items di keranjang
           </p>
         </div>
       </div>
@@ -46,11 +46,11 @@ export default function Cart({ basePath = '/member' }) {
           {items.map((it, idx) => (
             <div 
               key={idx} 
-              className="group relative flex flex-col rounded-3xl border border-zinc-900 bg-zinc-950/50 p-4 transition-all hover:border-zinc-800"
+              className="group relative flex flex-col rounded-3xl border border-zinc-800 bg-linear-to-br from-emerald-900 to-black/80 p-3 transition-all hover:border-zinc-800"
             >
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3">
                 {/* Product Image */}
-                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+                <div className="h-20 aspect-square shrink-0 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-900">
                   {it.product?.image ? (
                     <img src={imageUrl(it.product.image)} alt="" className="h-full w-full object-cover" />
                   ) : (
@@ -61,7 +61,7 @@ export default function Cart({ basePath = '/member' }) {
                 {/* Details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="truncate text-sm font-black text-white uppercase tracking-tight">
+                    <h3 className="truncate text-sm font-bold text-white uppercase tracking-tight">
                       {it.product?.name}
                     </h3>
                     <button
@@ -93,8 +93,8 @@ export default function Cart({ basePath = '/member' }) {
               </div>
 
               {/* Quantity Controls */}
-              <div className="mt-4 flex items-center justify-between border-t border-zinc-900/50 pt-4">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Quantity</span>
+              <div className="mt-2 flex items-center justify-between border-t border-zinc-900/50 pt-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Jumlah</span>
                 <div className="flex items-center gap-1 bg-zinc-900 rounded-xl p-1 border border-zinc-800">
                   <button
                     type="button"
@@ -156,15 +156,15 @@ export default function Cart({ basePath = '/member' }) {
           <div className="mt-8">
             <Link
               to={`${basePath}/checkout`}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] py-4 text-xs font-black uppercase tracking-[0.2em] text-[var(--accent-foreground)] shadow-xl shadow-[var(--accent)]/20 hover:brightness-110 active:scale-[0.98] transition-all"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-900 py-4 text-xs font-black uppercase tracking-[0.2em] text-[var(--accent-foreground)] shadow-xl shadow-[var(--accent)]/20 hover:brightness-110 active:scale-[0.98] transition-all"
             >
-              Proceed to Checkout <ChevronRight size={18} />
+              Bayar sekarang <ChevronRight size={18} />
             </Link>
             <Link
               to={`${basePath}/menu`}
               className="mt-4 block text-center text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:text-zinc-400 transition-colors"
             >
-              Add more items
+              Tambah item lain
             </Link>
           </div>
         </div>

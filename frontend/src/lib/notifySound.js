@@ -46,9 +46,11 @@ export async function playNotifySound(type = "default") {
   const settings =
     type === "success"
       ? { freq: 880, freq2: 1174, duration: 0.18 }
-      : type === "status"
-        ? { freq: 740, freq2: 988, duration: 0.16 }
-        : { freq: 660, freq2: 880, duration: 0.18 };
+      : type === "chat"
+        ? { freq: 784, freq2: 1046, duration: 0.14 }
+        : type === "status"
+          ? { freq: 740, freq2: 988, duration: 0.16 }
+          : { freq: 660, freq2: 880, duration: 0.18 };
 
   const start = ctx.currentTime;
   osc.type = "sine";

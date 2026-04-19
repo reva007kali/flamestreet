@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --accent: #09dd61;
-  --accent-hover: #0ea351;
+  --accent: #03926c;
+  --accent-hover: #0a9864;
   --accent-foreground: #ffffff;
   --accent-muted: rgba(16, 185, 109, 0.15);
-  --accent-border: rgba(14, 225, 141, 0.4);
+  --accent-border: rgba(16, 187, 118, 0.4);
 }
 
 html,

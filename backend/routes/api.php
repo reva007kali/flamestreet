@@ -17,10 +17,13 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CourierController;
 use App\Http\Controllers\Api\DokuCheckoutController;
+use App\Http\Controllers\Api\ChatThreadController;
 use App\Http\Controllers\Api\GymController;
 use App\Http\Controllers\Api\MeController;
+use App\Http\Controllers\Api\MemberNutritionController;
 use App\Http\Controllers\Api\MemberPointController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\OrderChatController;
 use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PromoBannerController;
 use App\Http\Controllers\Api\ProductController;
@@ -31,6 +34,9 @@ use App\Http\Controllers\Api\Staff\OrderController as StaffOrderController;
 use App\Http\Controllers\Api\Staff\CourierController as StaffCourierController;
 use App\Http\Controllers\Api\Staff\DashboardController as StaffDashboardController;
 use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\Api\DeliveryController;
+use App\Http\Controllers\Api\LandingController;
+use App\Http\Controllers\Api\Admin\DeliveryBranchController as AdminDeliveryBranchController;
 use App\Http\Controllers\Api\Flamehub\FeedController as FlamehubFeedController;
 use App\Http\Controllers\Api\Flamehub\PostController as FlamehubPostController;
 use App\Http\Controllers\Api\Flamehub\CommentController as FlamehubCommentController;
@@ -41,6 +47,8 @@ use App\Http\Controllers\Api\Flamehub\SavedController as FlamehubSavedController
 use App\Http\Controllers\Api\Flamehub\UserController as FlamehubUserController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/landing', [LandingController::class, 'show']);
+
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
@@ -50,6 +58,7 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [MeController::class, 'show']);
     Route::put('/me/profile', [MeController::class, 'updateProfile']);
+    Route::put('/me/password', [MeController::class, 'updatePassword']);
     Route::post('/me/avatar', [MeController::class, 'updateAvatar'])->middleware('throttle:uploads');
     Route::put('/me/avatar', [MeController::class, 'updateAvatar'])->middleware('throttle:uploads');
     Route::delete('/me/avatar', [MeController::class, 'deleteAvatar']);
@@ -57,8 +66,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/me/push-token', [MeController::class, 'deletePushToken']);
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
     Route::delete('/device-tokens', [DeviceTokenController::class, 'destroy']);
+    Route::get('/delivery/branches', [DeliveryController::class, 'branches']);
+    Route::get('/delivery/quote', [DeliveryController::class, 'quote']);
+    Route::get('/delivery/reverse-geocode', [DeliveryController::class, 'reverseGeocode']);
+    Route::get('/delivery/geocode-search', [DeliveryController::class, 'geocodeSearch']);
     Route::get('/member/points', [MemberPointController::class, 'show'])->middleware('role:member');
     Route::get('/member/points/history', [MemberPointController::class, 'history'])->middleware('role:member');
+    Route::get('/member/nutrition/weekly', [MemberNutritionController::class, 'weekly'])->middleware('role:member');
 
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{slug}', [ProductController::class, 'show']);
@@ -101,6 +115,10 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::get('/orders/{orderNumber}', [OrderController::class, 'show']);
+    Route::get('/orders/{id}/chat/messages', [OrderChatController::class, 'index']);
+    Route::post('/orders/{id}/chat/messages', [OrderChatController::class, 'store'])->middleware('throttle:uploads');
+    Route::get('/chats/threads', [ChatThreadController::class, 'index']);
+    Route::post('/chats/threads/{orderId}/read', [ChatThreadController::class, 'markRead']);
 
     Route::prefix('trainer')->middleware('role:trainer')->group(function () {
         Route::get('/dashboard', [TrainerController::class, 'dashboard']);
@@ -186,5 +204,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/point-settings', [AdminPointSettingController::class, 'update']);
         Route::get('/trainers', [AdminTrainerController::class, 'index']);
         Route::put('/trainers/{id}/verify', [AdminTrainerController::class, 'verify']);
+        Route::get('/delivery-branches', [AdminDeliveryBranchController::class, 'index']);
+        Route::post('/delivery-branches', [AdminDeliveryBranchController::class, 'store']);
+        Route::put('/delivery-branches/{id}', [AdminDeliveryBranchController::class, 'update']);
+        Route::delete('/delivery-branches/{id}', [AdminDeliveryBranchController::class, 'destroy']);
     });
 });

@@ -1,0 +1,281 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#060a07;font-family:system-ui,sans-serif;padding:12px;}
+.page{display:flex;flex-direction:column;gap:10px;max-width:420px;margin:0 auto;}
+
+.glass-green{
+  border-radius:20px;
+  border:1px solid rgba(52,211,153,0.13);
+  background:linear-gradient(145deg,rgba(6,28,16,0.95) 0%,rgba(3,12,8,0.98) 100%);
+  overflow:hidden;
+}
+.glass-dark{
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,0.06);
+  background:linear-gradient(145deg,rgba(16,16,20,0.97) 0%,rgba(8,8,10,0.99) 100%);
+  overflow:hidden;
+}
+
+.card-pad{padding:14px 16px;}
+
+.section-label{
+  font-size:9px;font-weight:900;text-transform:uppercase;
+  letter-spacing:0.2em;color:rgba(255,255,255,0.25);
+}
+
+/* header */
+.topbar{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;border-radius:20px;
+  border:1px solid rgba(52,211,153,0.1);
+  background:linear-gradient(135deg,rgba(6,28,16,0.92) 0%,rgba(3,10,6,0.96) 100%);
+}
+.back-btn{
+  width:36px;height:36px;border-radius:12px;flex-shrink:0;
+  background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);
+  display:grid;place-items:center;cursor:pointer;
+}
+.back-btn svg{width:15px;height:15px;stroke:#fff;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;fill:none;}
+.page-title{font-size:16px;font-weight:900;color:#fff;line-height:1.1;}
+.page-sub{font-size:10px;font-weight:600;color:rgba(255,255,255,0.3);margin-top:2px;}
+.flame-btn{
+  margin-left:auto;width:36px;height:36px;border-radius:12px;flex-shrink:0;
+  background:rgba(9,221,97,0.15);border:1px solid rgba(9,221,97,0.25);
+  display:grid;place-items:center;
+}
+.flame-btn svg{width:18px;height:18px;fill:rgba(9,221,97,0.9);}
+
+/* ring */
+.ring-outer{
+  width:110px;height:110px;border-radius:50%;flex-shrink:0;
+  background:conic-gradient(from 90deg,rgba(9,221,97,0.95),rgba(9,221,97,0.2),rgba(9,221,97,0.95));
+  padding:3px;display:grid;place-items:center;
+}
+.ring-inner{
+  width:100%;height:100%;border-radius:50%;
+  background:#060a07;
+  display:grid;place-items:center;text-align:center;
+}
+.ring-val{font-size:22px;font-weight:900;color:#fff;line-height:1;}
+.ring-label{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:0.2em;color:rgba(255,255,255,0.4);margin-top:3px;}
+
+/* week summary */
+.week-top{display:flex;align-items:center;gap:12px;padding:14px 16px 12px;}
+.macros-pill{
+  flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  border-radius:14px;border:1px solid rgba(255,255,255,0.06);
+  background:rgba(0,0,0,0.3);overflow:hidden;
+}
+.macro-col{
+  padding:10px 8px;text-align:center;
+  border-right:1px solid rgba(255,255,255,0.05);
+}
+.macro-col:last-child{border-right:none;}
+.macro-name{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.3);}
+.macro-val{font-size:13px;font-weight:900;color:#fff;margin-top:3px;}
+.macro-unit{font-size:9px;font-weight:700;color:rgba(255,255,255,0.35);}
+
+.info-strip{
+  margin:0 14px 14px;
+  display:flex;align-items:start;gap:7px;
+  border-radius:12px;border:1px solid rgba(9,221,97,0.1);
+  background:rgba(9,221,97,0.05);padding:9px 11px;
+}
+.info-strip svg{width:13px;height:13px;stroke:rgba(9,221,97,0.7);flex-shrink:0;margin-top:1px;fill:none;stroke-width:2;stroke-linecap:round;}
+.info-strip span{font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);line-height:1.5;}
+
+/* card header row */
+.card-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px 10px;border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.card-header-right{font-size:10px;font-weight:700;color:rgba(255,255,255,0.25);}
+
+/* daily rows */
+.day-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.day-row:last-child{border-bottom:none;}
+.day-date{font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);}
+.day-right{display:flex;align-items:center;gap:10px;}
+.day-kcal{font-size:12px;font-weight:900;color:#fff;}
+.day-macros{font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);}
+
+/* top items */
+.item-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.item-row:last-child{border-bottom:none;}
+.item-rank{
+  font-size:11px;font-weight:900;color:rgba(255,255,255,0.15);
+  width:16px;flex-shrink:0;text-align:center;
+}
+.item-rank.top{color:rgba(9,221,97,0.6);}
+.item-info{min-width:0;flex:1;}
+.item-name{font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-sub{font-size:10px;font-weight:600;color:rgba(255,255,255,0.3);margin-top:2px;}
+.item-kcal{text-align:right;flex-shrink:0;}
+.item-kcal-val{font-size:13px;font-weight:900;color:rgba(9,221,97,0.9);}
+.item-kcal-label{font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:0.15em;color:rgba(255,255,255,0.25);}
+</style>
+
+<div class="page">
+
+  <!-- topbar -->
+  <div class="topbar">
+    <div class="back-btn">
+      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </div>
+    <div>
+      <div class="page-title">Weekly Nutrition</div>
+      <div class="page-sub">7 hari terakhir · order paid</div>
+    </div>
+    <div class="flame-btn">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C12 2 7 7.5 7 13a5 5 0 0010 0c0-2.5-1.5-4.5-3-6 0 2-1 3-2 3.5C13 9 12 6 12 2z"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- this week -->
+  <div class="glass-green">
+    <div class="week-top">
+      <div class="ring-outer">
+        <div class="ring-inner">
+          <div>
+            <div class="ring-val">3.240</div>
+            <div class="ring-label">kcal</div>
+          </div>
+        </div>
+      </div>
+      <div class="macros-pill">
+        <div class="macro-col">
+          <div class="macro-name">Protein</div>
+          <div class="macro-val">248<span class="macro-unit">g</span></div>
+        </div>
+        <div class="macro-col">
+          <div class="macro-name">Carbs</div>
+          <div class="macro-val">310<span class="macro-unit">g</span></div>
+        </div>
+        <div class="macro-col">
+          <div class="macro-name">Fat</div>
+          <div class="macro-val">89<span class="macro-unit">g</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="info-strip">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Angka berasal dari nutrisi produk × quantity, dijumlahkan dari order paid.</span>
+    </div>
+  </div>
+
+  <!-- daily -->
+  <div class="glass-dark">
+    <div class="card-header">
+      <span class="section-label">Daily</span>
+      <span class="card-header-right">19 Apr → 25 Apr</span>
+    </div>
+    <div class="day-row">
+      <span class="day-date">Mon, 19 Apr</span>
+      <div class="day-right">
+        <span class="day-kcal">540 kcal</span>
+        <span class="day-macros">42p · 55c · 14f</span>
+      </div>
+    </div>
+    <div class="day-row">
+      <span class="day-date">Tue, 20 Apr</span>
+      <div class="day-right">
+        <span class="day-kcal">480 kcal</span>
+        <span class="day-macros">38p · 48c · 12f</span>
+      </div>
+    </div>
+    <div class="day-row">
+      <span class="day-date">Wed, 21 Apr</span>
+      <div class="day-right">
+        <span class="day-kcal">610 kcal</span>
+        <span class="day-macros">50p · 62c · 15f</span>
+      </div>
+    </div>
+    <div class="day-row">
+      <span class="day-date">Thu, 22 Apr</span>
+      <div class="day-right">
+        <span class="day-kcal">390 kcal</span>
+        <span class="day-macros">30p · 40c · 10f</span>
+      </div>
+    </div>
+    <div class="day-row">
+      <span class="day-date">Fri, 23 Apr</span>
+      <div class="day-right">
+        <span class="day-kcal">720 kcal</span>
+        <span class="day-macros">58p · 70c · 18f</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- top items -->
+  <div class="glass-dark">
+    <div class="card-header">
+      <span class="section-label">Top Items</span>
+      <span class="card-header-right">by calories</span>
+    </div>
+    <div class="item-row">
+      <span class="item-rank top">1</span>
+      <div class="item-info">
+        <div class="item-name">Grilled Chicken Bowl</div>
+        <div class="item-sub">3x · 42p · 55c · 14f</div>
+      </div>
+      <div class="item-kcal">
+        <div class="item-kcal-val">540</div>
+        <div class="item-kcal-label">kcal</div>
+      </div>
+    </div>
+    <div class="item-row">
+      <span class="item-rank top">2</span>
+      <div class="item-info">
+        <div class="item-name">Salmon Fillet</div>
+        <div class="item-sub">2x · 38p · 12c · 22f</div>
+      </div>
+      <div class="item-kcal">
+        <div class="item-kcal-val">420</div>
+        <div class="item-kcal-label">kcal</div>
+      </div>
+    </div>
+    <div class="item-row">
+      <span class="item-rank top">3</span>
+      <div class="item-info">
+        <div class="item-name">Beef Sirloin 300g</div>
+        <div class="item-sub">1x · 50p · 8c · 28f</div>
+      </div>
+      <div class="item-kcal">
+        <div class="item-kcal-val">380</div>
+        <div class="item-kcal-label">kcal</div>
+      </div>
+    </div>
+    <div class="item-row">
+      <span class="item-rank">4</span>
+      <div class="item-info">
+        <div class="item-name">Protein Oatmeal</div>
+        <div class="item-sub">2x · 20p · 45c · 8f</div>
+      </div>
+      <div class="item-kcal">
+        <div class="item-kcal-val">310</div>
+        <div class="item-kcal-label">kcal</div>
+      </div>
+    </div>
+    <div class="item-row">
+      <span class="item-rank">5</span>
+      <div class="item-info">
+        <div class="item-name">Egg White Wrap</div>
+        <div class="item-sub">1x · 18p · 28c · 6f</div>
+      </div>
+      <div class="item-kcal">
+        <div class="item-kcal-val">240</div>
+        <div class="item-kcal-label">kcal</div>
+      </div>
+    </div>
+  </div>
+
+</div>

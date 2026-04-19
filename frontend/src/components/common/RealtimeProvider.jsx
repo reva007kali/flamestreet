@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createEcho } from "@/lib/echo";
 import { useAuthStore } from "@/store/authStore";
 import { useNotifStore } from "@/store/notifStore";
@@ -52,6 +53,16 @@ function notifMessage(type, data) {
     const reason = d?.reason ? String(d.reason) : "";
     return [id, amt, reason].filter(Boolean).join(" • ");
   }
+  if (type === "order_chat_message") {
+    const on = d?.order_number ? `Order ${d.order_number}` : "";
+    const body =
+      typeof d?.body === "string" && d.body.trim()
+        ? d.body.trim()
+        : typeof d?.message === "string" && d.message.trim()
+          ? d.message.trim()
+          : "";
+    return [on, body].filter(Boolean).join(" • ");
+  }
   if (typeof d?.message === "string" && d.message.trim())
     return d.message.trim();
   return "";
@@ -62,6 +73,7 @@ export function RealtimeProvider({ children }) {
   const user = useAuthStore((s) => s.user);
   const pushNotif = useNotifStore((s) => s.push);
   const setCounts = useQueueStore((s) => s.setCounts);
+  const qc = useQueryClient();
   const [echo, setEcho] = useState(null);
   const echoInstanceRef = useRef(null);
   const disconnectTimerRef = useRef(null);
@@ -70,6 +82,9 @@ export function RealtimeProvider({ children }) {
     const inserted = pushNotif(notif);
     if (!inserted) return;
     if (sound) playNotifySound(sound);
+    if (notif?.type === "order_chat_message") {
+      qc.invalidateQueries({ queryKey: ["chatThreads"] });
+    }
   };
 
   useEffect(() => {
@@ -134,6 +149,14 @@ export function RealtimeProvider({ children }) {
         payload?.notification?.title ?? data?.title ?? "Notification";
       const body = payload?.notification?.body ?? data?.body ?? "";
       const msg = notifMessage(t, { ...data, message: body });
+      const sound =
+        t === "reward_in"
+          ? "success"
+          : t === "order_status"
+            ? "status"
+            : t === "order_chat_message"
+              ? "chat"
+              : "default";
       pushOnce({
         notif: {
           type: String(t),
@@ -141,7 +164,7 @@ export function RealtimeProvider({ children }) {
           message: String(msg),
           data,
         },
-        sound: "default",
+        sound,
       });
     });
   }, [token, user?.id, pushNotif]);
@@ -200,7 +223,9 @@ export function RealtimeProvider({ children }) {
           ? "success"
           : t === "order_status"
             ? "status"
-            : "default";
+            : t === "order_chat_message"
+              ? "chat"
+              : "default";
       pushOnce({
         notif: {
           type: t,

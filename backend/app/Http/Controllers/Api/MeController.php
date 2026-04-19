@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\TrainerProfile;
 use App\Services\ExpoNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class MeController extends Controller
 {
@@ -35,12 +37,62 @@ class MeController extends Controller
             'full_name' => ['sometimes', 'string', 'max:100'],
             'phone_number' => ['sometimes', 'string', 'max:20', 'unique:users,phone_number,' . $user->id],
             'flamehub_bio' => ['sometimes', 'nullable', 'string', 'max:160'],
+            'trainer_bio' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'username' => ['sometimes', 'string', 'max:50', Rule::unique('users', 'username')->ignore($user->id)],
+            'email' => ['sometimes', 'string', 'email', 'max:100', Rule::unique('users', 'email')->ignore($user->id)],
+            'current_password' => ['sometimes', 'string'],
         ]);
+
+        $needsCurrentPassword = false;
+        if (array_key_exists('email', $data) && (string) $data['email'] !== (string) $user->email) {
+            $needsCurrentPassword = true;
+        }
+        if (array_key_exists('username', $data) && (string) $data['username'] !== (string) $user->username) {
+            $needsCurrentPassword = true;
+        }
+
+        if ($needsCurrentPassword) {
+            $request->validate([
+                'current_password' => ['required', 'current_password'],
+            ]);
+        }
+
+        $trainerBio = array_key_exists('trainer_bio', $data) ? $data['trainer_bio'] : null;
+        unset($data['trainer_bio'], $data['current_password']);
 
         $user->fill($data);
         $user->save();
 
+        if (array_key_exists('trainer_bio', $request->all())) {
+            $tp = TrainerProfile::query()->where('user_id', $user->id)->first();
+            if ($tp) {
+                $tp->bio = $trainerBio;
+                $tp->save();
+            }
+        }
+
         return $this->show($request);
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $user = $request->user();
+        $data = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user->password = $data['password'];
+        $user->save();
+
+        $token = $request->user()->currentAccessToken();
+        if ($token) {
+            $request->user()->tokens()->where('id', '!=', $token->id)->delete();
+        } else {
+            $request->user()->tokens()->delete();
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function updateAvatar(Request $request)

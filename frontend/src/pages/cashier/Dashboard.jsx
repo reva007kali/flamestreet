@@ -2,14 +2,16 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '@/lib/axios'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Calendar as CalendarIcon, ChevronRight, ListOrdered, ReceiptText } from 'lucide-react'
+import { Calendar as CalendarIcon, ChevronRight, ListOrdered, ReceiptText, ArrowUpRight, TrendingUp } from 'lucide-react'
 
 export default function Dashboard() {
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const pad2 = (n) => String(n).padStart(2, '0')
+  const toYmd = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+  const today = useMemo(() => toYmd(new Date()), [])
   const [from, setFrom] = useState(today)
   const [to, setTo] = useState(today)
 
@@ -33,180 +35,138 @@ export default function Dashboard() {
   const counts = countsQuery.data ?? {}
   const sales = dashboardQuery.data?.sales ?? {}
   const itemsSold = dashboardQuery.data?.items_sold ?? []
-  const orders = (queueQuery.data?.data ?? []).slice(0, 5)
+  const orders = (queueQuery.data?.data ?? []).slice(0, 4)
   const money = (v) => `Rp ${Number(v ?? 0).toLocaleString('id-ID')}`
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[var(--accent)] font-bold tracking-tighter uppercase text-sm italic">
-            <CalendarIcon size={16} /> Cashier
-          </div>
-          <h1 className="text-3xl font-black tracking-tight uppercase italic">Dashboard</h1>
-          <p className="text-zinc-500 text-sm font-medium">Ringkasan operasional kasir.</p>
+    <div className="max-w-md mx-auto space-y-4 pb-20">
+      {/* HEADER SECTION */}
+      <div className="flex items-center justify-between px-1">
+        <div>
+          <h1 className="text-xl font-black tracking-tight uppercase italic leading-none">CASHIER</h1>
+          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-1">Operational Summary</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-800/60 bg-zinc-900/30 px-3 py-2">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              setFrom(today)
-              setTo(today)
-            }}
-            className="bg-zinc-950 text-zinc-200 hover:bg-zinc-900 rounded-xl font-black text-[11px] uppercase tracking-widest px-4 h-9 border border-zinc-800"
-          >
-            Hari Ini
-          </Button>
-          <div className="flex items-center gap-2 px-1">
-            <input
+        <div className="flex items-center gap-1 bg-zinc-900/50 p-1 rounded-lg border border-zinc-800">
+           <input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              onClick={(e) => e.currentTarget.showPicker?.()}
-              className="bg-transparent text-xs font-bold text-zinc-400 outline-none"
+              className="bg-transparent text-[10px] font-bold text-zinc-400 outline-none w-20"
             />
-            <ChevronRight size={12} className="text-zinc-700" />
+            <ChevronRight size={10} className="text-zinc-700" />
             <input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              onClick={(e) => e.currentTarget.showPicker?.()}
-              className="bg-transparent text-xs font-bold text-zinc-400 outline-none"
+              className="bg-transparent text-[10px] font-bold text-zinc-400 outline-none w-20"
             />
-          </div>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-zinc-950 border-zinc-800/60 shadow-xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-              <ReceiptText size={14} className="text-[var(--accent)]" /> Pendapatan
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-6">
-            <div className="text-2xl font-black text-white tabular-nums tracking-tighter">
-              {money(sales.total_collected)}
-            </div>
-            <div className="mt-2 text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
-              {Number(sales.orders_paid ?? 0).toLocaleString('id-ID')} order paid
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-zinc-950 border-zinc-800/60 shadow-xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-              <ListOrdered size={14} className="text-[var(--accent)]" /> Queue Total
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-6">
-            <div className="text-3xl font-black text-white tabular-nums tracking-tighter">
-              {Number(counts.queue_total ?? 0).toLocaleString('id-ID')}
-            </div>
-            <div className="mt-2">
-              <Badge className="bg-zinc-900/60 text-zinc-300 border-zinc-800">
-                Unpaid: {Number(counts.queue_unpaid ?? 0).toLocaleString('id-ID')}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-zinc-950 border-zinc-800/60 shadow-xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-              <ListOrdered size={14} className="text-[var(--accent)]" /> Quick Actions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-6 flex flex-col gap-2">
-            <Link to="/cashier/queue">
-              <Button type="button" className="w-full justify-start gap-2">
-                <ListOrdered className="h-4 w-4" /> Buka Antrian
-              </Button>
-            </Link>
-            <Link to="/cashier/orders">
-              <Button type="button" variant="secondary" className="w-full justify-start gap-2">
-                <ReceiptText className="h-4 w-4" /> Lihat Orders
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-zinc-950 border-zinc-800/60 shadow-xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 flex items-center gap-2">
-              <ReceiptText size={14} className="text-[var(--accent)]" /> Latest Queue
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pb-6 space-y-3">
-            {orders.map((o) => (
-              <div key={o.id} className="flex items-center justify-between rounded-xl border border-zinc-800/60 bg-zinc-900/20 px-3 py-2">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-bold text-white">{o.order_number}</div>
-                  <div className="truncate text-[11px] text-zinc-500">
-                    {o.recipient_name} • Rp {Number(o.total_amount ?? 0).toLocaleString('id-ID')}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 pl-3">
-                  <Badge className="bg-zinc-900/60 text-zinc-300 border-zinc-800">{o.payment_status}</Badge>
-                </div>
+      {/* STATS GRID - 2 Columns on Mobile */}
+      <div className="grid grid-cols-2 gap-2">
+        <Card className="bg-zinc-950 border-zinc-800/60 shadow-sm overflow-hidden">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="p-1 rounded bg-emerald-500/10">
+                <TrendingUp size={12} className="text-emerald-500" />
               </div>
-            ))}
-            {!queueQuery.isLoading && !orders.length ? (
-              <div className="text-xs font-bold text-zinc-600 uppercase tracking-widest">Queue kosong.</div>
-            ) : null}
-            {queueQuery.isLoading ? <div className="text-sm text-zinc-400">Loading...</div> : null}
+              <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Revenue</span>
+            </div>
+            <div className="text-sm font-black text-white truncate">{money(sales.total_collected)}</div>
+            <div className="text-[9px] font-bold text-emerald-500/80 mt-0.5">{sales.orders_paid ?? 0} Paid</div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-zinc-950 border-zinc-800/60 shadow-sm overflow-hidden">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="p-1 rounded bg-orange-500/10">
+                <ListOrdered size={12} className="text-orange-500" />
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Queue</span>
+            </div>
+            <div className="text-sm font-black text-white">{counts.queue_total ?? 0} <span className="text-[10px] text-zinc-500 font-medium">Orders</span></div>
+            <div className="text-[9px] font-bold text-orange-500/80 mt-0.5">{counts.queue_unpaid ?? 0} Unpaid</div>
           </CardContent>
         </Card>
       </div>
 
+      {/* QUICK ACTIONS - Grid of Mini Buttons */}
+      <div className="grid grid-cols-2 gap-2">
+        <Link to="/cashier/queue">
+          <Button variant="outline" className="w-full h-10 bg-zinc-900/40 border-zinc-800 text-[11px] font-bold uppercase tracking-tighter gap-2 justify-start px-3">
+            <div className="bg-[var(--accent)] p-1 rounded-sm text-black">
+              <ListOrdered size={12} />
+            </div>
+            Antrian
+          </Button>
+        </Link>
+        <Link to="/cashier/orders">
+          <Button variant="outline" className="w-full h-10 bg-zinc-900/40 border-zinc-800 text-[11px] font-bold uppercase tracking-tighter gap-2 justify-start px-3">
+            <div className="bg-zinc-800 p-1 rounded-sm text-zinc-400">
+              <ReceiptText size={12} />
+            </div>
+            Riwayat
+          </Button>
+        </Link>
+      </div>
+
+      {/* LATEST QUEUE - Compact List */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Antrian Terbaru</h2>
+          <Button variant="link" className="h-auto p-0 text-[10px] text-[var(--accent)] font-bold uppercase">Semua</Button>
+        </div>
+        <div className="grid gap-1.5">
+          {orders.map((o) => (
+            <div key={o.id} className="flex items-center justify-between rounded-lg border border-zinc-800/60 bg-zinc-900/20 p-2.5">
+              <div className="flex flex-col">
+                <span className="text-[11px] font-black text-white leading-none">#{o.order_number}</span>
+                <span className="text-[10px] text-zinc-500 font-medium mt-1 truncate max-w-[120px]">{o.recipient_name}</span>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] font-black text-white leading-none">{money(o.total_amount)}</div>
+                <Badge variant="outline" className={`mt-1 h-4 px-1.5 text-[8px] uppercase font-black ${o.payment_status === 'paid' ? 'border-emerald-900 text-emerald-500' : 'border-orange-900 text-orange-500'}`}>
+                  {o.payment_status}
+                </Badge>
+              </div>
+            </div>
+          ))}
+          {!queueQuery.isLoading && !orders.length && (
+             <div className="text-[10px] text-center py-4 font-bold text-zinc-600 uppercase tracking-widest">Kosong</div>
+          )}
+        </div>
+      </div>
+
+      {/* ITEMS SOLD - Tight Table */}
       <Card className="bg-zinc-950 border-zinc-800/60 shadow-xl overflow-hidden">
-        <CardHeader className="border-b border-zinc-900">
-          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-            Items Terjual (Paid)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-zinc-900/30">
-              <TableRow className="border-zinc-800">
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                  Item
-                </TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">
-                  Qty
-                </TableHead>
-                <TableHead className="text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">
-                  Revenue
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {itemsSold.slice(0, 30).map((it) => (
-                <TableRow key={`${it.product_id}-${it.product_name}`} className="border-zinc-900 hover:bg-zinc-900/20">
-                  <TableCell className="font-semibold text-zinc-200">{it.product_name}</TableCell>
-                  <TableCell className="text-right font-bold tabular-nums text-zinc-300">
-                    {Number(it.qty_sold ?? 0).toLocaleString('id-ID')}
-                  </TableCell>
-                  <TableCell className="text-right font-black tabular-nums text-emerald-400">
+        <div className="px-3 py-2 border-b border-zinc-900 bg-zinc-900/30 flex justify-between items-center">
+           <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Top Selling</h2>
+           <TrendingUp size={12} className="text-zinc-700" />
+        </div>
+        <Table>
+          <TableBody>
+            {itemsSold.slice(0, 5).map((it) => (
+              <TableRow key={`${it.product_id}-${it.product_name}`} className="border-zinc-900 hover:bg-zinc-900/20 px-0">
+                <TableCell className="py-2 px-3">
+                  <div className="text-[11px] font-bold text-zinc-200 leading-tight">{it.product_name}</div>
+                  <div className="text-[9px] text-zinc-500">{it.qty_sold} terjual</div>
+                </TableCell>
+                <TableCell className="py-2 px-3 text-right">
+                  <div className="text-[11px] font-black tabular-nums text-emerald-400">
                     {money(it.revenue)}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!dashboardQuery.isLoading && itemsSold.length === 0 ? (
-                <TableRow className="border-zinc-900">
-                  <TableCell colSpan={3} className="py-10 text-center text-xs font-bold text-zinc-600 uppercase tracking-widest">
-                    Belum ada penjualan paid di range ini.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-          {dashboardQuery.isLoading ? (
-            <div className="p-4 text-sm text-zinc-400">Loading...</div>
-          ) : null}
-        </CardContent>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {itemsSold.length > 5 && (
+          <div className="p-2 border-t border-zinc-900 bg-zinc-900/10 text-center">
+             <button className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Lihat Semua Item</button>
+          </div>
+        )}
       </Card>
     </div>
   )

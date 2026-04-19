@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { api } from "@/lib/axios";
+import ChatFab from "@/components/chat/ChatFab";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -293,6 +294,8 @@ export default function Dashboard() {
           </div>
         ) : null}
       </div>
+
+      <ChatFab to="/courier/chats" />
     </div>
   );
 }

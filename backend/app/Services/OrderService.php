@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductModifierOption;
 use App\Models\Gym;
+use App\Services\DeliveryPricingService;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -20,6 +21,7 @@ class OrderService
         protected ReferralService $referralService,
         protected NotificationService $notificationService,
         protected PointService $pointService,
+        protected DeliveryPricingService $deliveryPricing,
     ) {
     }
 
@@ -40,7 +42,33 @@ class OrderService
                 $gym = Gym::query()->where('is_active', true)->find((int) $cartData['gym_id']);
             }
 
-            $deliveryFee = $gym ? 0.0 : (float) ($cartData['delivery_fee'] ?? 0);
+            $deliveryFee = 0.0;
+            $deliveryLat = null;
+            $deliveryLng = null;
+            $deliveryDistanceM = null;
+            $deliveryBranchId = null;
+
+            if ($gym) {
+                $deliveryFee = 0.0;
+            } else {
+                $deliveryLat = isset($cartData['delivery_lat']) ? (float) $cartData['delivery_lat'] : null;
+                $deliveryLng = isset($cartData['delivery_lng']) ? (float) $cartData['delivery_lng'] : null;
+                if ($deliveryLat === null || $deliveryLng === null) {
+                    throw ValidationException::withMessages([
+                        'delivery_lat' => ['Delivery location is required'],
+                    ]);
+                }
+
+                $q = $this->deliveryPricing->quote($deliveryLat, $deliveryLng);
+                if (! $q) {
+                    throw ValidationException::withMessages([
+                        'delivery_lat' => ['No delivery branches available'],
+                    ]);
+                }
+                $deliveryFee = (float) ($q['fee'] ?? 0);
+                $deliveryDistanceM = (int) ($q['distance_m'] ?? 0) ?: null;
+                $deliveryBranchId = isset($q['branch']['id']) ? (int) $q['branch']['id'] : null;
+            }
             $discountAmount = (float) ($cartData['discount_amount'] ?? 0);
 
             $order = new Order();
@@ -64,6 +92,10 @@ class OrderService
             $order->points_earned_trainer = 0;
             $order->gym_id = $gym?->id;
             $order->delivery_address = $gym ? $this->formatGymAddress($gym) : ($cartData['delivery_address'] ?? '');
+            $order->delivery_lat = $gym ? null : $deliveryLat;
+            $order->delivery_lng = $gym ? null : $deliveryLng;
+            $order->delivery_distance_m = $gym ? null : $deliveryDistanceM;
+            $order->delivery_branch_id = $gym ? null : $deliveryBranchId;
             $order->delivery_notes = $cartData['delivery_notes'] ?? null;
             $order->recipient_name = $cartData['recipient_name'] ?? $member->full_name;
             $order->recipient_phone = $cartData['recipient_phone'] ?? $member->phone_number;

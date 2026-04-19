@@ -21,6 +21,7 @@ class NotificationService
     public function notifyUser(int $userId, string $type, string $title, array $data = []): void
     {
         try {
+            $data = $this->withUrl($type, $data);
             UserNotification::dispatch($userId, $type, $title, $data);
             $body = null;
             if (isset($data['body']) && is_string($data['body']) && trim($data['body']) !== '') {
@@ -105,17 +106,18 @@ class NotificationService
     {
         try {
             NewDeliveryAssigned::dispatch($courierUserId, $orderId, $orderNumber);
+            $data = $this->withUrl('delivery_assigned', ['order_id' => $orderId, 'order_number' => $orderNumber]);
             $this->expoPush->sendToUser(
                 $courierUserId,
                 'Delivery baru',
                 $orderNumber ? '#'.$orderNumber : null,
-                ['type' => 'delivery_assigned', 'order_id' => $orderId, 'order_number' => $orderNumber],
+                ['type' => 'delivery_assigned'] + $data,
             );
             $this->fcmPush->sendToUser(
                 $courierUserId,
                 'Delivery baru',
                 $orderNumber ? '#'.$orderNumber : null,
-                ['type' => 'delivery_assigned', 'order_id' => $orderId, 'order_number' => $orderNumber],
+                ['type' => 'delivery_assigned'] + $data,
             );
         } catch (\Throwable $e) {
             Log::warning('Broadcast failed: notifyCourierNewDelivery', ['courierUserId' => $courierUserId, 'error' => $e->getMessage()]);
@@ -127,37 +129,48 @@ class NotificationService
         try {
             OrderQueueUpdated::dispatch($counts, $eventType, $orderNumber, $status, $paymentStatus, $orderId);
             if ($eventType === 'created') {
+                $data = $this->withUrl('order_queue', [
+                    'counts' => $counts,
+                    'event_type' => $eventType,
+                    'order_number' => $orderNumber,
+                    'status' => $status,
+                    'payment_status' => $paymentStatus,
+                    'order_id' => $orderId,
+                ]);
                 $this->expoPush->sendToRoles(
                     ['admin', 'cashier'],
                     'Order masuk',
                     $orderNumber ? '#'.$orderNumber : null,
-                    [
-                        'type' => 'order_queue',
-                        'counts' => $counts,
-                        'event_type' => $eventType,
-                        'order_number' => $orderNumber,
-                        'status' => $status,
-                        'payment_status' => $paymentStatus,
-                        'order_id' => $orderId,
-                    ],
+                    ['type' => 'order_queue'] + $data,
                 );
                 $this->fcmPush->sendToRoles(
                     ['admin', 'cashier'],
                     'Order masuk',
                     $orderNumber ? '#'.$orderNumber : null,
-                    [
-                        'type' => 'order_queue',
-                        'counts' => $counts,
-                        'event_type' => $eventType,
-                        'order_number' => $orderNumber,
-                        'status' => $status,
-                        'payment_status' => $paymentStatus,
-                        'order_id' => $orderId,
-                    ],
+                    ['type' => 'order_queue'] + $data,
                 );
             }
         } catch (\Throwable $e) {
             Log::warning('Broadcast failed: notifyOrderQueue', ['error' => $e->getMessage()]);
         }
+    }
+
+    protected function withUrl(string $type, array $data): array
+    {
+        if (isset($data['url']) && is_string($data['url']) && trim($data['url']) !== '') {
+            return $data;
+        }
+
+        $orderNumber = isset($data['order_number']) ? trim((string) $data['order_number']) : '';
+        if ($orderNumber !== '') {
+            if ($type === 'delivery_assigned') {
+                $data['url'] = '/courier/delivery/'.$orderNumber;
+                return $data;
+            }
+            $data['url'] = '/orders/'.$orderNumber;
+            return $data;
+        }
+
+        return $data;
     }
 }

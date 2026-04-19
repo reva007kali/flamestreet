@@ -1,26 +1,31 @@
-import { useEffect } from 'react'
-import { ShoppingCart, X } from 'lucide-react'
-import { useFullscreenNoticeStore } from '@/store/fullscreenNoticeStore'
+import { useEffect } from "react";
+import { ShoppingCart, X } from "lucide-react";
+import { useFullscreenNoticeStore } from "@/store/fullscreenNoticeStore";
 
 export default function FullscreenNotice() {
-  const open = useFullscreenNoticeStore((s) => s.open)
-  const title = useFullscreenNoticeStore((s) => s.title)
-  const subtitle = useFullscreenNoticeStore((s) => s.subtitle)
-  const hide = useFullscreenNoticeStore((s) => s.hide)
+  const open = useFullscreenNoticeStore((s) => s.open);
+  const title = useFullscreenNoticeStore((s) => s.title);
+  const subtitle = useFullscreenNoticeStore((s) => s.subtitle);
+  const hide = useFullscreenNoticeStore((s) => s.hide);
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const onKeyDown = (e) => {
-      if (e.key === 'Escape') hide()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, hide])
+      if (e.key === "Escape") hide();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, hide]);
 
-  if (!open) return null
+  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-[9999] flex cursor-pointer items-center justify-center bg-black/70 px-6 backdrop-blur-sm"
+      onMouseDown={hide}
+      role="button"
+      tabIndex={0}
+    >
       <button
         type="button"
         onClick={hide}
@@ -37,13 +42,16 @@ export default function FullscreenNotice() {
           </div>
         </div>
         <div className="mt-5 text-center">
-          <div className="text-lg font-black text-white uppercase tracking-tight">{title}</div>
+          <div className="text-lg font-black text-white uppercase tracking-tight">
+            {title}
+          </div>
           {subtitle ? (
-            <div className="mt-1 text-sm font-semibold text-zinc-400">{subtitle}</div>
+            <div className="mt-1 text-sm font-semibold text-zinc-400">
+              {subtitle}
+            </div>
           ) : null}
         </div>
       </div>
     </div>
-  )
+  );
 }
-

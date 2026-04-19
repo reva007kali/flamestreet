@@ -57,6 +57,7 @@ import { toPublicUrl } from "../lib/assets";
 import { useNavigation } from "@react-navigation/native";
 import { useCartStore } from "../store/cartStore";
 import * as SecureStore from "expo-secure-store";
+import { navigationRef } from "./navRef";
 
 export { FloatingHeader } from "../components/FloatingHeader";
 
@@ -369,6 +370,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer
+      ref={navigationRef}
       theme={{
         ...DarkTheme,
         colors: {

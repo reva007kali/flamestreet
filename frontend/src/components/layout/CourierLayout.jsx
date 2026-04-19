@@ -1,14 +1,17 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { useState } from "react";
-import { Flame, LayoutDashboard, LogOut, Menu, Truck, X } from "lucide-react";
+import { Flame, LogOut, Menu, Truck, X, MessageCircle } from "lucide-react";
 import { api } from "@/lib/axios";
 import { getOrCreateDeviceId } from "@/lib/deviceId";
 
 const NAV_GROUPS = [
   {
     title: "Kurir",
-    items: [{ to: "/courier/dashboard", label: "Deliveries", Icon: Truck }],
+    items: [
+      { to: "/courier/dashboard", label: "Deliveries", Icon: Truck },
+      { to: "/courier/chats", label: "Chats", Icon: MessageCircle },
+    ],
   },
 ];
 
@@ -43,7 +46,7 @@ export default function CourierLayout() {
           "md:w-[220px] w-[220px]",
         ].join(" ")}
       >
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800/70 px-4">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800/70">
           <Link
             to="/courier"
             className="flex items-center gap-2.5"
@@ -123,7 +126,7 @@ export default function CourierLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-zinc-800/70 bg-zinc-950/80 px-4 backdrop-blur-sm md:px-6">
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-zinc-800/70 bg-zinc-950/80  backdrop-blur-sm md:px-6">
           <button
             onClick={() => setMobileOpen(true)}
             className="flex items-center justify-center rounded-md h-8 w-8 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 md:hidden"
@@ -134,9 +137,38 @@ export default function CourierLayout() {
           <Breadcrumb pathname={location.pathname} />
         </header>
 
-        <main className="flex-1 p-4 md:p-7">
+        <main className="flex-1 p-4 pb-24 md:p-7 md:pb-7">
           <Outlet />
         </main>
+
+        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-800/70 bg-zinc-950/90 backdrop-blur md:hidden">
+          <div className="mx-auto grid max-w-md grid-cols-2 px-4 py-2">
+            <Link
+              to="/courier/dashboard"
+              className={[
+                "flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest",
+                location.pathname.startsWith("/courier/dashboard")
+                  ? "text-emerald-400"
+                  : "text-zinc-500",
+              ].join(" ")}
+            >
+              <Truck size={18} />
+              Home
+            </Link>
+            <Link
+              to="/courier/chats"
+              className={[
+                "flex flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest",
+                location.pathname.startsWith("/courier/chats")
+                  ? "text-emerald-400"
+                  : "text-zinc-500",
+              ].join(" ")}
+            >
+              <MessageCircle size={18} />
+              Chats
+            </Link>
+          </div>
+        </nav>
       </div>
     </div>
   );

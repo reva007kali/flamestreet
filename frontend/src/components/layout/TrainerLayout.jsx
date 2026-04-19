@@ -4,6 +4,8 @@ import {
   FileText,
   Flame,
   LayoutDashboard,
+  ListOrdered,
+  MessageCircle,
   User,
   Users,
   Utensils,
@@ -23,7 +25,12 @@ export default function TrainerLayout() {
           Icon: Utensils,
           matchPaths: ["/trainer/menu", "/trainer/product"],
         },
-        { to: "/trainer/points", label: "Points", Icon: Coins },
+        {
+          to: "/trainer/orders",
+          label: "Orders",
+          Icon: ListOrdered,
+          matchPaths: ["/trainer/orders", "/orders"],
+        },
         {
           to: "/trainer/flamehub",
           label: "Flamehub",
@@ -31,7 +38,9 @@ export default function TrainerLayout() {
           matchPaths: ["/trainer/flamehub"],
         },
         { to: "/trainer/profile", label: "Profile", Icon: User },
+        { to: "/trainer/chats", label: "Chats", Icon: MessageCircle },
         { to: "/trainer/referrals", label: "Referrals", Icon: Users },
+        { to: "/trainer/points", label: "Points", Icon: Coins },
       ]}
     />
   );

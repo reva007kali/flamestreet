@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
@@ -8,9 +8,18 @@ import AuthShell from "@/components/auth/AuthShell";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const setSession = useAuthStore((s) => s.setSession);
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
+
+  const fromPath = (() => {
+    const p = location?.state?.from;
+    if (typeof p !== "string") return null;
+    if (!p.startsWith("/")) return null;
+    if (p === "/login" || p === "/register") return null;
+    return p;
+  })();
 
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +32,7 @@ export default function Login() {
     },
     onSuccess: (data) => {
       setSession(data.token, data.user);
-      navigate(homeForRoles(data.user.roles), { replace: true });
+      navigate(fromPath ?? homeForRoles(data.user.roles), { replace: true });
     },
     onError: (e) => {
       setError(e?.response?.data?.message ?? "Login failed");
@@ -31,7 +40,7 @@ export default function Login() {
   });
 
   if (token && user) {
-    return <Navigate to={homeForRoles(user.roles)} replace />;
+    return <Navigate to={fromPath ?? homeForRoles(user.roles)} replace />;
   }
 
   return (

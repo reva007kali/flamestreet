@@ -23,13 +23,20 @@ import ProductDetail from "@/pages/member/ProductDetail";
 import Cart from "@/pages/member/Cart";
 import Checkout from "@/pages/member/Checkout";
 import MemberOrders from "@/pages/member/Orders";
+import MemberChats from "@/pages/member/Chats";
+import MemberChatThread from "@/pages/member/ChatThread";
+import MemberNutrition from "@/pages/member/Nutrition";
 import MemberProfile from "@/pages/member/Profile";
 import TrainerDashboard from "@/pages/trainer/Dashboard";
 import TrainerReferrals from "@/pages/trainer/Referrals";
 import TrainerPoints from "@/pages/trainer/Points";
 import TrainerProfile from "@/pages/trainer/Profile";
+import TrainerChats from "@/pages/trainer/Chats";
+import TrainerChatThread from "@/pages/trainer/ChatThread";
 import CourierDashboard from "@/pages/courier/Dashboard";
 import DeliveryDetail from "@/pages/courier/DeliveryDetail";
+import CourierChats from "@/pages/courier/Chats";
+import CourierChatThread from "@/pages/courier/ChatThread";
 import CashierQueue from "@/pages/cashier/Queue";
 import CashierOrders from "@/pages/cashier/Orders";
 import CashierDashboard from "@/pages/cashier/Dashboard";
@@ -51,12 +58,15 @@ import AdminTrainers from "@/pages/admin/Trainers";
 import AdminMembers from "@/pages/admin/Members";
 import AdminGyms from "@/pages/admin/Gyms";
 import AdminPointSettings from "@/pages/admin/PointSettings";
+import AdminDeliveryBranches from "@/pages/admin/DeliveryBranches";
+import AdminDeliveryPricing from "@/pages/admin/DeliveryPricing";
 import AdminRedeems from "@/pages/admin/Redeems";
+import Landing from "@/pages/Landing";
 
 function RootRedirect() {
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
-  if (!token || !user) return <Navigate to="/login" replace />;
+  if (!token || !user) return <Landing />;
   return <Navigate to={homeForRoles(user.roles ?? [])} replace />;
 }
 
@@ -83,6 +93,12 @@ export default function App() {
           <Route path="/member/cart" element={<Cart />} />
           <Route path="/member/checkout" element={<Checkout />} />
           <Route path="/member/orders" element={<MemberOrders />} />
+          <Route path="/member/chats" element={<MemberChats />} />
+          <Route
+            path="/member/chats/:orderNumber"
+            element={<MemberChatThread />}
+          />
+          <Route path="/member/nutrition" element={<MemberNutrition />} />
           <Route
             path="/member/feed"
             element={<Articles basePath="/member" />}
@@ -181,6 +197,11 @@ export default function App() {
           <Route path="/trainer/cart" element={<Cart basePath="/trainer" />} />
           <Route path="/trainer/checkout" element={<Checkout />} />
           <Route path="/trainer/orders" element={<MemberOrders />} />
+          <Route path="/trainer/chats" element={<TrainerChats />} />
+          <Route
+            path="/trainer/chats/:orderNumber"
+            element={<TrainerChatThread />}
+          />
         </Route>
       </Route>
 
@@ -191,6 +212,11 @@ export default function App() {
             element={<Navigate to="/courier/dashboard" replace />}
           />
           <Route path="/courier/dashboard" element={<CourierDashboard />} />
+          <Route path="/courier/chats" element={<CourierChats />} />
+          <Route
+            path="/courier/chats/:orderNumber"
+            element={<CourierChatThread />}
+          />
           <Route
             path="/courier/delivery/:orderNumber"
             element={<DeliveryDetail />}
@@ -254,6 +280,14 @@ export default function App() {
           <Route path="/admin/trainers" element={<AdminTrainers />} />
           <Route path="/admin/members" element={<AdminMembers />} />
           <Route path="/admin/gyms" element={<AdminGyms />} />
+          <Route
+            path="/admin/delivery-branches"
+            element={<AdminDeliveryBranches />}
+          />
+          <Route
+            path="/admin/delivery-pricing"
+            element={<AdminDeliveryPricing />}
+          />
           <Route
             path="/admin/point-settings"
             element={<AdminPointSettings />}

@@ -41,7 +41,7 @@ function Thumb({ post, basePath }) {
       to={`${basePath}/flamehub/p/${post.id}`}
       className="group relative overflow-hidden rounded-md border border-zinc-800/70 bg-zinc-950/60 hover:border-zinc-700"
     >
-      <div className="aspect-[3/5] w-full bg-black/30">
+      <div className="aspect-[3/4] w-full bg-black/30">
         {src ? (
           m?.type === "video" ? (
             <video
@@ -132,28 +132,6 @@ export default function FlamehubProfile({ basePath }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <Link
-          to={`${basePath}/flamehub`}
-          className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-700"
-        >
-          Back
-        </Link>
-        <Link
-          to={`${basePath}/flamehub/search`}
-          className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-3 py-2 text-sm font-semibold text-zinc-200 hover:border-zinc-700"
-        >
-          Search
-        </Link>
-      </div>
-
-      {profileQuery.isLoading ? (
-        <div className="text-sm text-zinc-400">Loading…</div>
-      ) : null}
-      {profileQuery.isError ? (
-        <div className="text-sm text-red-300">Failed to load profile.</div>
-      ) : null}
-
       {user ? (
         <div className="relative overflow-hidden rounded-3xl border border-emerald-400/15 bg-zinc-950/50 p-5 shadow-[0_0_55px_rgba(34,197,94,0.08)] backdrop-blur">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(34,197,94,0.18),transparent_55%)]" />

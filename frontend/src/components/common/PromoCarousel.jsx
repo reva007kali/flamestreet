@@ -19,7 +19,7 @@ export default function PromoCarousel({ slides, intervalMs = 4500 }) {
   if (!items.length) return null
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 sm:rounded-2xl">
+    <div className="relative overflow-hidden border border-zinc-800 bg-zinc-900 sm:rounded-2xl">
       <div
         className="flex transition-transform duration-500 ease-out"
         style={{ transform: `translateX(-${index * 100}%)` }}

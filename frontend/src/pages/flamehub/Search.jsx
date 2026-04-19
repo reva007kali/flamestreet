@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import { toPublicUrl } from "@/lib/assets";
@@ -27,13 +27,33 @@ function Avatar({ user }) {
 }
 
 export default function FlamehubSearch({ basePath }) {
+  const [params, setParams] = useSearchParams();
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
+
+  useEffect(() => {
+    const initial = params.get("q");
+    if (!initial) return;
+    setQ(String(initial));
+    setDebounced(String(initial).trim());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(q.trim()), 250);
     return () => window.clearTimeout(t);
   }, [q]);
+
+  useEffect(() => {
+    const next = q.trim();
+    const cur = params.get("q") ?? "";
+    if (next === cur) return;
+    if (!next) {
+      setParams({}, { replace: true });
+      return;
+    }
+    setParams({ q: next }, { replace: true });
+  }, [q, params, setParams]);
 
   const query = useQuery({
     queryKey: ["flamehub", "userSearch", debounced],
@@ -46,13 +66,12 @@ export default function FlamehubSearch({ basePath }) {
   const rows = useMemo(() => query.data ?? [], [query.data]);
 
   return (
-    <div className="mx-auto max-w-xl space-y-5">
+    <div className="mx-auto max-w-xl space-y-5 px-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <div className="text-xs font-semibold uppercase tracking-widest text-emerald-300/80">
-            Flamehub
+            Search
           </div>
-          <h1 className="mt-1 text-2xl font-black text-zinc-100">Search</h1>
         </div>
         <Link
           to={`${basePath}/flamehub`}
@@ -62,7 +81,7 @@ export default function FlamehubSearch({ basePath }) {
         </Link>
       </div>
 
-      <div className="rounded-2xl border border-emerald-400/15 bg-zinc-950/50 p-4 backdrop-blur">
+      <div className="rounded-2xl border border-emerald-700 p-3 bg-zinc-950/50 backdrop-blur">
         <input
           className="w-full rounded-xl border border-zinc-800/80 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-emerald-400/40"
           value={q}

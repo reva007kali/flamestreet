@@ -21,6 +21,8 @@ class OrderController extends Controller
         $data = $request->validate([
             'gym_id' => ['nullable', 'integer', Rule::exists('gyms', 'id')->where('is_active', true)],
             'delivery_address' => ['required', 'string'],
+            'delivery_lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'delivery_lng' => ['nullable', 'numeric', 'between:-180,180'],
             'delivery_notes' => ['nullable', 'string'],
             'recipient_name' => ['required', 'string', 'max:100'],
             'recipient_phone' => ['required', 'string', 'max:20'],
@@ -35,6 +37,12 @@ class OrderController extends Controller
             'items.*.modifier_option_ids.*' => ['integer', 'exists:product_modifier_options,id'],
             'items.*.item_notes' => ['nullable', 'string'],
         ]);
+
+        if (empty($data['gym_id'])) {
+            if (!isset($data['delivery_lat']) || !isset($data['delivery_lng'])) {
+                return response()->json(['message' => 'Delivery location is required'], 422);
+            }
+        }
 
         $order = $this->orderService->createOrder($request->user(), $data);
 
@@ -74,10 +82,18 @@ class OrderController extends Controller
 
     public function show(Request $request, string $orderNumber)
     {
-        $order = Order::query()->with(['items', 'gym'])->where('order_number', $orderNumber)->firstOrFail();
+        $order = Order::query()
+            ->with([
+                'items',
+                'gym',
+                'member:id,full_name,avatar',
+                'courier:id,full_name,avatar',
+            ])
+            ->where('order_number', $orderNumber)
+            ->firstOrFail();
 
         $user = $request->user();
-        if (! $user->hasRole('admin')) {
+        if (!$user->hasRole('admin')) {
             $ok = false;
             if ($user->hasRole('member') && (int) $order->member_id === (int) $user->id) {
                 $ok = true;
@@ -88,7 +104,7 @@ class OrderController extends Controller
             if ($user->hasRole('courier') && (int) $order->courier_id === (int) $user->id) {
                 $ok = true;
             }
-            if (! $ok) {
+            if (!$ok) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
         }

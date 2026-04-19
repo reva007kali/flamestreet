@@ -11,7 +11,7 @@ export default function ModifierSelector({ modifiers, value, onChange }) {
   return (
     <div className="space-y-4">
       {(modifiers ?? []).map((m) => (
-        <div key={m.id} className="rounded border border-zinc-800 bg-zinc-900 p-3">
+        <div key={m.id} className="rounded-3xl bg-linear-to-br from-emerald-900 to-black p-3">
           <div className="flex items-center justify-between">
             <div className="font-medium">{m.name}</div>
             {m.is_required ? (
@@ -27,7 +27,7 @@ export default function ModifierSelector({ modifiers, value, onChange }) {
               return (
                 <label
                   key={opt.id}
-                  className="flex cursor-pointer items-center gap-2 rounded border border-zinc-800 px-3 py-2 text-sm hover:border-zinc-700"
+                  className="flex cursor-pointer items-center gap-2 rounded-3xl border border-zinc-800 bg-black px-3 py-2 text-sm hover:border-zinc-700"
                 >
                   <input
                     type={isSingle ? 'radio' : 'checkbox'}

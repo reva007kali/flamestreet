@@ -7,6 +7,7 @@ import { addToInbox } from "../lib/notificationInbox";
 import { createEcho } from "../lib/realtime";
 import { useOrderQueueStore } from "../store/orderQueueStore";
 import * as SecureStore from "expo-secure-store";
+import { navigationRef } from "../navigation/navRef";
 
 const EMPTY_ROLES: readonly string[] = [];
 const ANDROID_DEFAULT_CHANNEL_ID = "default";
@@ -55,6 +56,62 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
   const echo = useMemo(() => (token ? createEcho(token) : null), [token]);
   const receivedSub = useRef<Notifications.Subscription | null>(null);
   const responseSub = useRef<Notifications.Subscription | null>(null);
+
+  const openFromData = async (data: any) => {
+    const d = data ?? {};
+    const type = String(d?.type ?? "");
+    const orderIdRaw = d?.order_id ?? d?.orderId ?? null;
+    const orderNumberRaw = d?.order_number ?? d?.orderNumber ?? null;
+    const orderId = orderIdRaw != null ? Number(orderIdRaw) : null;
+    const orderNumber = orderNumberRaw != null ? String(orderNumberRaw) : "";
+    const postIdRaw = d?.post_id ?? d?.postId ?? d?.id ?? null;
+    const postId = postIdRaw != null ? Number(postIdRaw) : null;
+    const username = d?.username != null ? String(d.username) : "";
+
+    const go = () => {
+      if (!navigationRef.isReady()) return false;
+
+      if (orderNumber) {
+        const isAdmin = roles.includes("admin");
+        const isCashier = roles.includes("cashier");
+        if (isAdmin && orderId != null && Number.isFinite(orderId)) {
+          navigationRef.navigate("AdminOrderDetail", { id: orderId });
+          return true;
+        }
+        if (isCashier && orderId != null && Number.isFinite(orderId)) {
+          navigationRef.navigate("CashierOrderDetail", { id: orderId });
+          return true;
+        }
+
+        navigationRef.navigate("OrderDetail", {
+          orderNumber,
+          orderId: orderId ?? undefined,
+        });
+        return true;
+      }
+
+      if (type.startsWith("flamehub") && postId != null && Number.isFinite(postId)) {
+        navigationRef.navigate("FlamehubPost", { id: postId });
+        return true;
+      }
+      if (type.startsWith("flamehub") && username) {
+        navigationRef.navigate("FlamehubProfile", { username });
+        return true;
+      }
+
+      return false;
+    };
+
+    if (go()) return;
+    let tries = 0;
+    const tick = () => {
+      tries += 1;
+      if (go()) return;
+      if (tries >= 20) return;
+      setTimeout(tick, 200);
+    };
+    setTimeout(tick, 200);
+  };
 
   useEffect(() => {
     async function ensureAndroidChannel() {
@@ -161,6 +218,7 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
           data: (content.data as any) ?? null,
           read: true,
         });
+        await openFromData(content.data);
       },
     );
 
@@ -177,6 +235,7 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
           data: (content.data as any) ?? null,
           read: true,
         });
+        await openFromData(content.data);
       })
       .catch((e) =>
         console.warn(
