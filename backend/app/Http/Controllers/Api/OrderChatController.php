@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderChatMessage;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -173,8 +174,11 @@ class OrderChatController extends Controller
             $img = @imagecreatefromwebp($tmpPath);
         }
 
+        $destFull = public_path($destPath);
+        File::ensureDirectoryExists(dirname($destFull));
+
         if (!$img) {
-            Storage::disk('public')->put($destPath, file_get_contents($tmpPath));
+            File::put($destFull, file_get_contents($tmpPath));
             return $destPath;
         }
 
@@ -189,7 +193,7 @@ class OrderChatController extends Controller
 
         $format = function_exists('imagewebp') ? 'webp' : (function_exists('imagejpeg') ? 'jpg' : null);
         if (!$format) {
-            Storage::disk('public')->put($destPath, file_get_contents($tmpPath));
+            File::put($destFull, file_get_contents($tmpPath));
             if (is_resource($img)) {
                 imagedestroy($img);
             }
@@ -251,11 +255,13 @@ class OrderChatController extends Controller
         }
 
         if ($bestBin && $bestPath) {
-            Storage::disk('public')->put($bestPath, $bestBin);
+            $bestFull = public_path($bestPath);
+            File::ensureDirectoryExists(dirname($bestFull));
+            File::put($bestFull, $bestBin);
             return $bestPath;
         }
 
-        Storage::disk('public')->put($destPath, file_get_contents($tmpPath));
+        File::put($destFull, file_get_contents($tmpPath));
         return $destPath;
     }
 }

@@ -20,6 +20,7 @@ import AppFlatList from "../ui/AppFlatList";
 import { theme } from "../ui/theme";
 import Screen from "../ui/Screen";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
+import ChatFab from "../components/ChatFab";
 
 const LAST_ADDRESS_KEY = "flamestreet_last_delivery_address";
 
@@ -756,6 +757,7 @@ export default function HomeScreen() {
           })}
         </View>
       </ScrollView>
+      <ChatFab />
     </Screen>
   );
 }

@@ -64,12 +64,48 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
     const orderNumberRaw = d?.order_number ?? d?.orderNumber ?? null;
     const orderId = orderIdRaw != null ? Number(orderIdRaw) : null;
     const orderNumber = orderNumberRaw != null ? String(orderNumberRaw) : "";
+    const urlRaw = d?.url != null ? String(d.url) : "";
     const postIdRaw = d?.post_id ?? d?.postId ?? d?.id ?? null;
     const postId = postIdRaw != null ? Number(postIdRaw) : null;
     const username = d?.username != null ? String(d.username) : "";
 
     const go = () => {
       if (!navigationRef.isReady()) return false;
+
+      if (urlRaw && urlRaw.startsWith("/")) {
+        const mChat = urlRaw.match(/\/chats\/([^/?#]+)/i);
+        const mOrder = urlRaw.match(/\/orders\/([^/?#]+)/i);
+        const mDelivery = urlRaw.match(/\/courier\/delivery\/([^/?#]+)/i);
+        if (mChat?.[1]) {
+          navigationRef.navigate("ChatThread", {
+            orderNumber: String(mChat[1]),
+            orderId: orderId ?? undefined,
+          });
+          return true;
+        }
+        if (mDelivery?.[1]) {
+          navigationRef.navigate("OrderDetail", {
+            orderNumber: String(mDelivery[1]),
+            orderId: orderId ?? undefined,
+          });
+          return true;
+        }
+        if (mOrder?.[1]) {
+          navigationRef.navigate("OrderDetail", {
+            orderNumber: String(mOrder[1]),
+            orderId: orderId ?? undefined,
+          });
+          return true;
+        }
+      }
+
+      if (type === "order_chat_message" && orderNumber) {
+        navigationRef.navigate("ChatThread", {
+          orderNumber,
+          orderId: orderId ?? undefined,
+        });
+        return true;
+      }
 
       if (orderNumber) {
         const isAdmin = roles.includes("admin");
@@ -90,7 +126,11 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
         return true;
       }
 
-      if (type.startsWith("flamehub") && postId != null && Number.isFinite(postId)) {
+      if (
+        type.startsWith("flamehub") &&
+        postId != null &&
+        Number.isFinite(postId)
+      ) {
         navigationRef.navigate("FlamehubPost", { id: postId });
         return true;
       }

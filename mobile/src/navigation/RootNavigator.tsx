@@ -1,7 +1,7 @@
 import { DarkTheme, NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useAuthStore } from "../store/authStore";
 import {
@@ -18,6 +18,8 @@ import CartScreen from "../screens/CartScreen";
 import CheckoutScreen from "../screens/CheckoutScreen";
 import OrdersScreen from "../screens/OrdersScreen";
 import OrderDetailScreen from "../screens/OrderDetailScreen";
+import ChatListScreen from "../screens/ChatListScreen";
+import ChatThreadScreen from "../screens/ChatThreadScreen";
 import ArticleDetailScreen from "../screens/ArticleDetailScreen";
 import FlamehubFeedScreen from "../screens/flamehub/FlamehubFeedScreen";
 import FlamehubCreatePostScreen from "../screens/flamehub/FlamehubCreatePostScreen";
@@ -56,6 +58,7 @@ import { theme } from "../ui/theme";
 import { toPublicUrl } from "../lib/assets";
 import { useNavigation } from "@react-navigation/native";
 import { useCartStore } from "../store/cartStore";
+import { useQuery } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import { navigationRef } from "./navRef";
 
@@ -163,6 +166,7 @@ function AuthNavigator() {
 
 function AppTabs() {
   const roles = useAuthStore((s) => s.user?.roles ?? EMPTY_ROLES);
+  const token = useAuthStore((s) => s.token);
   const isAdmin = roles.includes("admin");
   const isCashier = roles.includes("cashier");
   const isCourier = roles.includes("courier");
@@ -181,7 +185,24 @@ function AppTabs() {
   const showStaffDashboard = isCashier;
   const showQueue = isCashier;
   const showOrders = !isCashier;
+  const showChats = Boolean(token) && !isAdmin && !isCashier;
   const cartCount = useCartStore((s) => s.totalItems());
+
+  const chatThreadsQuery = useQuery({
+    queryKey: ["chatThreads"],
+    enabled: showChats,
+    queryFn: async () => (await api.get("/chats/threads")).data?.threads ?? [],
+    refetchInterval: 8000,
+    staleTime: 5000,
+  });
+
+  const chatUnreadCount = useMemo(() => {
+    const list = chatThreadsQuery.data ?? [];
+    return list.reduce(
+      (sum: number, t: any) => sum + (Number(t?.unread_count ?? 0) || 0),
+      0,
+    );
+  }, [chatThreadsQuery.data]);
 
   return (
     <Tab.Navigator
@@ -209,11 +230,18 @@ function AppTabs() {
             Cart: "cart",
             Queue: "list",
             Orders: "receipt",
+            Chats: "chatbubble-ellipses",
           };
           const name = map[route.name] ?? "ellipse";
           const iconSize = size ?? 22;
-          const showBadge = route.name === "Cart" && cartCount > 0;
-          const badgeText = cartCount > 9 ? "9+" : String(cartCount);
+          const badgeCount =
+            route.name === "Cart"
+              ? cartCount
+              : route.name === "Chats"
+                ? chatUnreadCount
+                : 0;
+          const showBadge = badgeCount > 0;
+          const badgeText = badgeCount > 9 ? "9+" : String(badgeCount);
           return (
             <View style={{ width: iconSize + 10, height: iconSize + 10 }}>
               <Ionicons
@@ -290,6 +318,9 @@ function AppTabs() {
         />
       ) : null}
       {showCart ? <Tab.Screen name="Cart" component={CartScreen} /> : null}
+      {showChats ? (
+        <Tab.Screen name="Chats" component={ChatListScreen} />
+      ) : null}
       {showOrders ? (
         <Tab.Screen
           name="Orders"
@@ -507,6 +538,15 @@ export default function RootNavigator() {
           options={{
             title: "Order",
             ...stackScreenAnimation, // slide dari kanan
+          }}
+        />
+        <RootStack.Screen
+          name="ChatThread"
+          component={ChatThreadScreen}
+          options={{
+            title: "Chat",
+            ...stackScreenAnimation,
+            headerShown: false,
           }}
         />
         <RootStack.Screen

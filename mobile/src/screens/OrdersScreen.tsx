@@ -9,6 +9,7 @@ import { theme } from "../ui/theme";
 import { usePullToRefresh } from "../lib/usePullToRefresh";
 import TextField from "../ui/TextField";
 import { useMemo, useState } from "react";
+import ChatFab from "../components/ChatFab";
 
 type Order = {
   id: number;
@@ -25,13 +26,20 @@ type Order = {
 };
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function daysAgoIso(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function statusCardStyle(status?: string) {
@@ -298,6 +306,7 @@ export default function OrdersScreen() {
           </Pressable>
         )}
       />
+      <ChatFab />
     </Screen>
   );
 }
