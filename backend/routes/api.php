@@ -59,6 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [MeController::class, 'show']);
     Route::put('/me/profile', [MeController::class, 'updateProfile']);
     Route::put('/me/password', [MeController::class, 'updatePassword']);
+    Route::put('/me/member-profile', [MeController::class, 'updateMemberProfile'])->middleware('role:member');
     Route::post('/me/avatar', [MeController::class, 'updateAvatar'])->middleware('throttle:uploads');
     Route::put('/me/avatar', [MeController::class, 'updateAvatar'])->middleware('throttle:uploads');
     Route::delete('/me/avatar', [MeController::class, 'deleteAvatar']);
@@ -142,6 +143,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/orders/{id}', [StaffOrderController::class, 'show']);
         Route::put('/orders/{id}', [StaffOrderController::class, 'update']);
         Route::put('/orders/{id}/assign-courier', [StaffOrderController::class, 'assignCourier']);
+        Route::post('/pos/orders', [\App\Http\Controllers\Api\Staff\PosOrderController::class, 'store']);
+        Route::get('/users/search', [\App\Http\Controllers\Api\Staff\UserSearchController::class, 'index']);
+        Route::post('/orders/{order}/doku/checkout', [DokuCheckoutController::class, 'create']);
+        Route::get('/orders/{order}/doku', [DokuCheckoutController::class, 'show']);
+        Route::get('/orders/{order}/doku/status', [DokuCheckoutController::class, 'status']);
     });
 
     Route::prefix('admin')->middleware('role:admin')->group(function () {

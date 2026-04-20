@@ -183,6 +183,8 @@ export default function ChatThreadScreen() {
   });
 
   const composerBottom = tabBarHeight > 0 ? tabBarHeight : insets.bottom;
+  const composerHeight = pickedUri ? 178 : 124;
+  const listBottomInset = composerBottom + composerHeight + 12;
   const canSend = Boolean(orderId) && !sending && (text.trim() || pickedUri);
 
   return (
@@ -227,7 +229,7 @@ export default function ChatThreadScreen() {
               ref={listRef}
               contentContainerStyle={{
                 gap: 10,
-                paddingBottom: 24,
+                paddingBottom: listBottomInset,
               }}
               data={messages}
               keyExtractor={(m) => String(m.id)}
@@ -341,7 +343,7 @@ export default function ChatThreadScreen() {
           backgroundColor: theme.colors.bg,
           paddingHorizontal: 12,
           paddingTop: 10,
-          paddingBottom: 10,
+          paddingBottom: Math.max(10, insets.bottom > 0 && tabBarHeight <= 0 ? insets.bottom : 10),
         }}
       >
         {pickedUri ? (

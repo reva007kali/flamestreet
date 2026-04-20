@@ -38,6 +38,7 @@ const LAST_LAT_KEY = "flamestreet_last_delivery_lat";
 const LAST_LNG_KEY = "flamestreet_last_delivery_lng";
 const RECENT_LOCATIONS_KEY = "flamestreet_recent_locations_v1";
 const EMPTY_ROLES: readonly string[] = [];
+const WA_PHONE = "6285182841385";
 
 export default function CheckoutScreen() {
   const navigation = useNavigation<any>();
@@ -65,7 +66,18 @@ export default function CheckoutScreen() {
   const [debouncedAddressQuery, setDebouncedAddressQuery] = useState("");
   const [recentLocations, setRecentLocations] = useState<any[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [deliveryModeTouched, setDeliveryModeTouched] = useState(false);
   const mapRef = useRef<OsmMapPickerRef | null>(null);
+  const customMapEnabled = false;
+
+  const openGojek = useCallback(async () => {
+    try {
+      await WebBrowser.openBrowserAsync("https://gofood.link/a/LY83SJu");
+    } catch {
+      Alert.alert("Gojek", "Tidak bisa membuka Gojek.");
+    }
+  }, []);
 
   const roles = useAuthStore((s) => s.user?.roles ?? EMPTY_ROLES);
   const userId = useAuthStore((s) => s.user?.id ?? 0);
@@ -103,8 +115,16 @@ export default function CheckoutScreen() {
     if (!recipientName) setRecipientName(meQuery.data?.full_name ?? "");
     if (!recipientPhone) setRecipientPhone(meQuery.data?.phone_number ?? "");
     const defGym = meQuery.data?.member_profile?.default_gym_id ?? null;
-    if (!isTrainer && !gymId && defGym) setGymId(Number(defGym));
-  }, [meQuery.data, recipientName, recipientPhone, gymId, isTrainer]);
+    if (!isTrainer && !gymId && defGym && !deliveryModeTouched)
+      setGymId(Number(defGym));
+  }, [
+    meQuery.data,
+    recipientName,
+    recipientPhone,
+    gymId,
+    isTrainer,
+    deliveryModeTouched,
+  ]);
 
   useEffect(() => {
     if (loadedLast) return;
@@ -117,7 +137,8 @@ export default function CheckoutScreen() {
         const lng = await SecureStore.getItemAsync(LAST_LNG_KEY);
         if (cancelled) return;
         if (!deliveryAddress && addr) setDeliveryAddress(addr);
-        if (!isTrainer && !gymId && gid) setGymId(Number(gid));
+        if (!isTrainer && !gymId && gid && !deliveryModeTouched)
+          setGymId(Number(gid));
         if (!deliveryLat && lat) setDeliveryLat(Number(lat));
         if (!deliveryLng && lng) setDeliveryLng(Number(lng));
         const recentRaw = await SecureStore.getItemAsync(
@@ -144,6 +165,7 @@ export default function CheckoutScreen() {
     deliveryLat,
     deliveryLng,
     userId,
+    deliveryModeTouched,
   ]);
 
   useEffect(() => {
@@ -168,17 +190,12 @@ export default function CheckoutScreen() {
 
   useEffect(() => {
     if (!selectedGym) return;
-    const parts = [
-      selectedGym?.gym_name,
-      selectedGym?.address,
-      selectedGym?.city,
-      selectedGym?.province,
-    ].filter(Boolean);
-    if (!deliveryAddress) setDeliveryAddress(parts.join(", "));
+    setDeliveryLat(null);
+    setDeliveryLng(null);
+    setDidManualAddress(false);
   }, [selectedGym?.id]);
 
   useEffect(() => {
-    if (isTrainer) return;
     if (!loadedLast) return;
     const hasAny = Boolean(deliveryAddress?.trim());
     const hasGym = Boolean(gymId);
@@ -194,7 +211,8 @@ export default function CheckoutScreen() {
 
   const quoteQuery = useQuery({
     queryKey: ["delivery", "quote", deliveryLat, deliveryLng],
-    enabled: !gymId && deliveryLat != null && deliveryLng != null,
+    enabled:
+      customMapEnabled && !gymId && deliveryLat != null && deliveryLng != null,
     queryFn: async () =>
       (
         await api.get("/delivery/quote", {
@@ -207,7 +225,11 @@ export default function CheckoutScreen() {
   const reverseQuery = useQuery({
     queryKey: ["delivery", "reverse", deliveryLat, deliveryLng],
     enabled:
-      !gymId && deliveryLat != null && deliveryLng != null && !didManualAddress,
+      customMapEnabled &&
+      !gymId &&
+      deliveryLat != null &&
+      deliveryLng != null &&
+      !didManualAddress,
     queryFn: async () =>
       (
         await api.get("/delivery/reverse-geocode", {
@@ -230,7 +252,11 @@ export default function CheckoutScreen() {
 
   const geocodeQuery = useQuery({
     queryKey: ["delivery", "geocode", debouncedAddressQuery],
-    enabled: !gymId && addressFocus && debouncedAddressQuery.length >= 3,
+    enabled:
+      customMapEnabled &&
+      !gymId &&
+      addressFocus &&
+      debouncedAddressQuery.length >= 3,
     queryFn: async () =>
       (
         await api.get("/delivery/geocode-search", {
@@ -289,6 +315,7 @@ export default function CheckoutScreen() {
   const applyRecent = useCallback((entry: any) => {
     if (!entry) return;
     if (entry.type === "gym" && entry.gym_id) {
+      setDeliveryModeTouched(true);
       setGymId(Number(entry.gym_id));
       setHistoryOpen(false);
       return;
@@ -297,6 +324,7 @@ export default function CheckoutScreen() {
       const lat = Number(entry.lat);
       const lng = Number(entry.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      setDeliveryModeTouched(true);
       setGymId(null);
       setDeliveryLat(lat);
       setDeliveryLng(lng);
@@ -311,20 +339,17 @@ export default function CheckoutScreen() {
   const createOrder = useMutation({
     mutationFn: async () => {
       if (!gymId) {
-        if (deliveryLat == null || deliveryLng == null) {
-          throw new Error("Delivery location is required");
-        }
-        if (!quoteQuery.data?.fee && quoteQuery.isError) {
-          throw new Error("Delivery quote unavailable");
-        }
+        throw new Error(
+          "Custom address sementara nonaktif. Pilih Gym Coverage atau Order via Gojek.",
+        );
       }
 
-      const deliveryFee = gymId ? 0 : Number(quoteQuery.data?.fee ?? 0);
+      const deliveryFee = 0;
       const payload = {
         gym_id: gymId ? Number(gymId) : null,
         delivery_address: deliveryAddress,
-        delivery_lat: gymId ? null : deliveryLat,
-        delivery_lng: gymId ? null : deliveryLng,
+        delivery_lat: null,
+        delivery_lng: null,
         delivery_notes: deliveryNotes || null,
         recipient_name: recipientName,
         recipient_phone: recipientPhone,
@@ -360,14 +385,6 @@ export default function CheckoutScreen() {
             label: g?.gym_name ? String(g.gym_name) : "Gym Coverage",
             address: g?.address ? String(g.address) : "",
           });
-        } else if (deliveryLat != null && deliveryLng != null) {
-          await pushRecent({
-            type: "custom",
-            lat: Number(deliveryLat),
-            lng: Number(deliveryLng),
-            label: deliveryAddress ? String(deliveryAddress) : "Custom Address",
-            address: deliveryAddress ? String(deliveryAddress) : "",
-          });
         }
       } catch {}
       clearCart();
@@ -401,6 +418,108 @@ export default function CheckoutScreen() {
     },
   });
 
+  const waOrder = useMutation({
+    mutationFn: async () => {
+      if (!gymId) {
+        throw new Error("Pilih Gym Coverage dulu untuk order via WhatsApp.");
+      }
+      const body = String(deliveryAddress ?? "").trim();
+      if (!body) throw new Error("Alamat pengantaran wajib diisi.");
+      if (!cartItems.length) throw new Error("Cart masih kosong.");
+      const subtotalSnapshot = Number(total()) || 0;
+      const itemsSnapshot = cartItems.map((i) => ({
+        name: i.name,
+        quantity: i.quantity,
+        base_price: i.base_price,
+        modifier_options: i.modifier_options ?? [],
+      }));
+
+      const payload = {
+        gym_id: Number(gymId),
+        delivery_address: body,
+        delivery_lat: null,
+        delivery_lng: null,
+        delivery_notes: deliveryNotes || null,
+        recipient_name: recipientName,
+        recipient_phone: recipientPhone,
+        payment_method: paymentMethod || null,
+        delivery_fee: 0,
+        discount_amount: 0,
+        items: cartItems.map((i) => ({
+          product_id: i.product_id,
+          quantity: i.quantity,
+          modifier_option_ids: i.modifier_option_ids ?? [],
+          item_notes: null,
+        })),
+      };
+
+      const r = await api.post("/orders", payload);
+      const order = r.data?.order;
+      if (!order?.id) throw new Error("Gagal membuat order.");
+
+      let paymentUrl = "";
+      if (String(paymentMethod ?? "").startsWith("doku-")) {
+        try {
+          const pr = await api.post(`/orders/${order.id}/doku/checkout`);
+          paymentUrl = pr.data?.payment_url ? String(pr.data.payment_url) : "";
+        } catch {}
+      }
+
+      return { order, paymentUrl, subtotalSnapshot, itemsSnapshot };
+    },
+    onSuccess: async ({
+      order,
+      paymentUrl,
+      subtotalSnapshot,
+      itemsSnapshot,
+    }: any) => {
+      const roles = useAuthStore.getState().user?.roles ?? EMPTY_ROLES;
+      const roleLabel = roles.includes("trainer") ? "Trainer" : "Member";
+      const name = useAuthStore.getState().user?.full_name ?? "";
+      const lines: string[] = [];
+      lines.push("Halo Flamestreet, saya mau order via WhatsApp.");
+      lines.push("");
+      lines.push(`Nama: ${name || recipientName || "-"}`);
+      lines.push(`Role: ${roleLabel}`);
+      lines.push(`Alamat Pengantaran: ${String(deliveryAddress ?? "").trim()}`);
+      lines.push("");
+      lines.push("Items:");
+      (itemsSnapshot ?? []).forEach((i: any, idx: number) => {
+        const mods = (i.modifier_options ?? [])
+          .map((m: any) => m.option_name)
+          .filter(Boolean)
+          .join(", ");
+        const unit = Number(i.base_price ?? 0);
+        const totalLine = unit * Number(i.quantity ?? 1);
+        lines.push(
+          `${idx + 1}) ${i.name} x${i.quantity} - Rp ${totalLine.toLocaleString("id-ID")}`,
+        );
+        if (mods) lines.push(`   • ${mods}`);
+      });
+      lines.push("");
+      lines.push(
+        `Subtotal: Rp ${Number(subtotalSnapshot ?? 0).toLocaleString("id-ID")}`,
+      );
+      lines.push(
+        `Total: Rp ${Number(subtotalSnapshot ?? 0).toLocaleString("id-ID")}`,
+      );
+      lines.push("");
+      lines.push(`Order Number: #${order?.order_number ?? ""}`);
+      if (paymentUrl) lines.push(`Payment (DOKU): ${paymentUrl}`);
+      const text = encodeURIComponent(lines.join("\n"));
+      const waUrl = `https://wa.me/${WA_PHONE}?text=${text}`;
+      await WebBrowser.openBrowserAsync(waUrl);
+      clearCart();
+      navigation.navigate("OrderDetail", {
+        orderNumber: order.order_number,
+        orderId: order.id,
+      });
+    },
+    onError: (e: any) => {
+      Alert.alert("WhatsApp Order", e?.message ?? "Gagal");
+    },
+  });
+
   const methods = (() => {
     const list: PaymentMethod[] = pmOptions.length
       ? pmOptions
@@ -410,17 +529,12 @@ export default function CheckoutScreen() {
     return list;
   })();
 
-  const deliveryFee = gymId ? 0 : Number(quoteQuery.data?.fee ?? 0);
+  const deliveryFee = 0;
   const finalTotal = Math.max(
     0,
     Math.round((Number(total()) || 0) + deliveryFee),
   );
-  const deliveryOk =
-    Boolean(gymId) ||
-    (deliveryLat != null &&
-      deliveryLng != null &&
-      !quoteQuery.isLoading &&
-      !quoteQuery.isError);
+  const deliveryOk = Boolean(gymId);
 
   const pointsBalance = Number(pointsQuery.data?.balance ?? 0) || 0;
   const pointsDue = finalTotal;
@@ -435,30 +549,17 @@ export default function CheckoutScreen() {
           style={{
             flex: 1,
             backgroundColor: "rgba(0,0,0,0.8)",
-            justifyContent: "flex-end",
+            justifyContent: "flex-start",
           }}
         >
           <View
             style={{
               backgroundColor: "#121212",
-              borderTopLeftRadius: 32,
-              borderTopRightRadius: 32,
-              paddingBottom: 40,
-              maxHeight: "90%",
+              flex: 1,
+              paddingTop: Math.max(insets.top, 12),
             }}
           >
-            <View
-              style={{
-                width: 40,
-                height: 4,
-                backgroundColor: "#333",
-                borderRadius: 2,
-                alignSelf: "center",
-                marginTop: 12,
-              }}
-            />
-
-            <View style={{ padding: 24, gap: 20 }}>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 14, gap: 16 }}>
               <View
                 style={{
                   flexDirection: "row",
@@ -506,15 +607,18 @@ export default function CheckoutScreen() {
                 />
               </View>
 
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                style={{ maxHeight: 400 }}
-              >
-                <View style={{ gap: 12 }}>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View
+                  style={{
+                    gap: 12,
+                    paddingBottom: Math.max(insets.bottom, 16),
+                  }}
+                >
                   <Pressable
                     onPress={() => {
-                      setGymId(null);
+                      setDeliveryModeTouched(true);
                       setGymModalOpen(false);
+                      openGojek();
                     }}
                   >
                     <View
@@ -537,7 +641,7 @@ export default function CheckoutScreen() {
                           fontSize: 16,
                         }}
                       >
-                        Custom Delivery
+                        Order via Gojek
                       </Text>
                       <Text
                         style={{
@@ -546,7 +650,7 @@ export default function CheckoutScreen() {
                           marginTop: 4,
                         }}
                       >
-                        Input address manually
+                        Untuk alamat di luar gym coverage
                       </Text>
                     </View>
                   </Pressable>
@@ -555,18 +659,51 @@ export default function CheckoutScreen() {
                     .filter(
                       (g: any) =>
                         !gymSearch ||
-                        g.gym_name
+                        String(g.gym_name ?? "")
+                          .toLowerCase()
+                          .includes(gymSearch.toLowerCase()) ||
+                        String(g.address ?? "")
+                          .toLowerCase()
+                          .includes(gymSearch.toLowerCase()) ||
+                        String(g.city ?? "")
+                          .toLowerCase()
+                          .includes(gymSearch.toLowerCase()) ||
+                        String(g.province ?? "")
                           .toLowerCase()
                           .includes(gymSearch.toLowerCase()),
                     )
                     .map((g: any) => {
                       const active = Number(gymId) === Number(g.id);
+                      const rawImg = g.image ? String(g.image) : "";
+                      const img = rawImg
+                        ? toPublicUrl(
+                            rawImg.startsWith("uploads/") ||
+                              rawImg.startsWith("storage/") ||
+                              rawImg.startsWith("http")
+                              ? rawImg
+                              : `storage/${rawImg}`,
+                          )
+                        : null;
+                      const addr = [g.address, g.city, g.province]
+                        .filter(Boolean)
+                        .join(", ");
                       return (
                         <Pressable
                           key={g.id}
-                          onPress={() => {
+                          onPress={async () => {
+                            setDeliveryModeTouched(true);
                             setGymId(Number(g.id));
+                            setDeliveryLat(null);
+                            setDeliveryLng(null);
+                            setDidManualAddress(false);
                             setGymModalOpen(false);
+                            if (!isTrainer) {
+                              try {
+                                await api.put("/me/member-profile", {
+                                  default_gym_id: Number(g.id),
+                                });
+                              } catch {}
+                            }
                           }}
                         >
                           <View
@@ -582,39 +719,64 @@ export default function CheckoutScreen() {
                                 : "#1a1a1a",
                             }}
                           >
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                justifyContent: "space-between",
-                              }}
-                            >
-                              <Text
+                            <View style={{ flexDirection: "row", gap: 12 }}>
+                              <View
                                 style={{
-                                  color: "#fff",
-                                  fontWeight: "900",
-                                  fontSize: 16,
+                                  width: 56,
+                                  height: 56,
+                                  borderRadius: 16,
+                                  overflow: "hidden",
+                                  borderWidth: 1,
+                                  borderColor: "rgba(255,255,255,0.08)",
+                                  backgroundColor: "#111",
                                 }}
                               >
-                                {g.gym_name}
-                              </Text>
-                              {active && (
-                                <Ionicons
-                                  name="checkmark-circle"
-                                  size={20}
-                                  color={theme.colors.green}
-                                />
-                              )}
+                                {img ? (
+                                  <Image
+                                    source={{ uri: img as string }}
+                                    style={{ width: 56, height: 56 }}
+                                  />
+                                ) : null}
+                              </View>
+                              <View style={{ flex: 1, minWidth: 0 }}>
+                                <View
+                                  style={{
+                                    flexDirection: "row",
+                                    justifyContent: "space-between",
+                                    gap: 10,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: "#fff",
+                                      fontWeight: "900",
+                                      fontSize: 16,
+                                      flex: 1,
+                                    }}
+                                    numberOfLines={1}
+                                  >
+                                    {g.gym_name}
+                                  </Text>
+                                  {active ? (
+                                    <Ionicons
+                                      name="checkmark-circle"
+                                      size={20}
+                                      color={theme.colors.green}
+                                    />
+                                  ) : null}
+                                </View>
+                                <Text
+                                  style={{
+                                    color: theme.colors.muted,
+                                    fontSize: 12,
+                                    marginTop: 4,
+                                  }}
+                                  numberOfLines={2}
+                                >
+                                  {addr}
+                                </Text>
+                              </View>
                             </View>
-                            <Text
-                              style={{
-                                color: theme.colors.muted,
-                                fontSize: 12,
-                                marginTop: 4,
-                              }}
-                              numberOfLines={2}
-                            >
-                              {g.address}
-                            </Text>
                           </View>
                         </Pressable>
                       );
@@ -722,6 +884,8 @@ export default function CheckoutScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={{
           padding: 20,
           gap: 20,
@@ -819,8 +983,8 @@ export default function CheckoutScreen() {
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    setGymId(null);
-                    setDidManualAddress(false);
+                    setDeliveryModeTouched(true);
+                    openGojek();
                   }}
                   style={{ flex: 1 }}
                 >
@@ -838,7 +1002,7 @@ export default function CheckoutScreen() {
                     <Text
                       style={{ color: theme.colors.text, fontWeight: "900" }}
                     >
-                      Custom Address
+                      Order via Gojek
                     </Text>
                   </View>
                 </Pressable>
@@ -868,216 +1032,66 @@ export default function CheckoutScreen() {
             </Card>
           ) : (
             <View style={{ gap: 10 }}>
-              {deliveryLat != null && deliveryLng != null ? (
-                <OsmMapPicker
-                  ref={(r) => {
-                    mapRef.current = r;
-                  }}
-                  lat={deliveryLat}
-                  lng={deliveryLng}
-                  zoom={19}
-                  onChange={(lat, lng) => {
-                    setDeliveryLat(lat);
-                    setDeliveryLng(lng);
-                    setDidManualAddress(false);
-                  }}
-                  height={280}
-                />
-              ) : (
-                <Card style={{ padding: 16 }}>
-                  <Text style={{ color: theme.colors.muted }}>
-                    Loading map…
-                  </Text>
-                </Card>
-              )}
-
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <Pressable
-                  onPress={async () => {
-                    try {
-                      const perm =
-                        await Location.requestForegroundPermissionsAsync();
-                      if (!perm.granted) return;
-                      const pos = await Location.getCurrentPositionAsync({
-                        accuracy: Location.Accuracy.Highest,
-                      });
-                      const lat = pos.coords.latitude;
-                      const lng = pos.coords.longitude;
-                      setDeliveryLat(lat);
-                      setDeliveryLng(lng);
-                      setDidManualAddress(false);
-                      mapRef.current?.setPoint(lat, lng, 19);
-                    } catch {}
-                  }}
-                  style={{ flex: 1 }}
-                >
-                  <View
-                    style={{
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 16,
-                      paddingVertical: 12,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "#151515",
-                    }}
-                  >
-                    <Text
-                      style={{ color: theme.colors.text, fontWeight: "900" }}
-                    >
-                      My Location
-                    </Text>
-                  </View>
-                </Pressable>
-
-                <Pressable
-                  onPress={() => setGymModalOpen(true)}
-                  style={{ flex: 1 }}
-                >
-                  <View
-                    style={{
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 16,
-                      paddingVertical: 12,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "#151515",
-                    }}
-                  >
-                    <Text
-                      style={{ color: theme.colors.text, fontWeight: "900" }}
-                    >
-                      Gym Coverage
-                    </Text>
-                  </View>
-                </Pressable>
-              </View>
-
-              {recentLocations.length ? (
-                <Pressable onPress={() => setHistoryOpen(true)}>
-                  <View
-                    style={{
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: 16,
-                      paddingVertical: 12,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "#151515",
-                    }}
-                  >
-                    <Text
-                      style={{ color: theme.colors.text, fontWeight: "900" }}
-                    >
-                      History ({recentLocations.length})
-                    </Text>
-                  </View>
-                </Pressable>
-              ) : null}
-
               <Card
                 style={{
-                  padding: 14,
-                  borderRadius: 20,
+                  padding: 16,
+                  borderRadius: 24,
                   backgroundColor: "#151515",
                   gap: 10,
+                  borderWidth: 1,
+                  borderColor: "rgba(255,255,255,0.05)",
                 }}
               >
                 <Text
-                  style={{
-                    color: "rgba(255,255,255,0.5)",
-                    fontWeight: "800",
-                    fontSize: 11,
-                  }}
+                  style={{ color: "#fff", fontWeight: "900", fontSize: 14 }}
                 >
-                  Address
+                  Custom Address (sementara nonaktif)
                 </Text>
-                <TextInput
-                  value={deliveryAddress}
-                  onChangeText={(v) => {
-                    setDeliveryAddress(v);
-                    setAddressQuery(v);
-                    setDidManualAddress(true);
-                  }}
-                  onFocus={() => setAddressFocus(true)}
-                  onBlur={() => setAddressFocus(false)}
-                  placeholder="Cari alamat / nama toko / jalan…"
-                  placeholderTextColor={theme.colors.muted}
-                  style={{
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    borderRadius: 16,
-                    paddingHorizontal: 12,
-                    paddingVertical: 12,
-                    color: theme.colors.text,
-                    backgroundColor: "rgba(0,0,0,0.25)",
-                  }}
-                />
-
-                {addressFocus && (geocodeQuery.data ?? []).length ? (
-                  <View style={{ gap: 8 }}>
-                    {(geocodeQuery.data ?? []).map((r: any, idx: number) => (
-                      <Pressable
-                        key={`${idx}-${r.lat}-${r.lng}`}
-                        onPress={() => {
-                          const lat = Number(r.lat);
-                          const lng = Number(r.lng);
-                          if (!Number.isFinite(lat) || !Number.isFinite(lng))
-                            return;
-                          setDeliveryLat(lat);
-                          setDeliveryLng(lng);
-                          setDeliveryAddress(String(r.label ?? ""));
-                          setAddressQuery(String(r.label ?? ""));
-                          setDidManualAddress(true);
-                          setAddressFocus(false);
-                          mapRef.current?.setPoint(lat, lng, 19);
-                        }}
+                <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
+                  Untuk alamat di luar gym coverage, silakan order via Gojek.
+                </Text>
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <Pressable onPress={openGojek} style={{ flex: 1 }}>
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 16,
+                        paddingVertical: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                      }}
+                    >
+                      <Text
+                        style={{ color: theme.colors.text, fontWeight: "900" }}
                       >
-                        <View
-                          style={{
-                            borderWidth: 1,
-                            borderColor: "rgba(255,255,255,0.05)",
-                            borderRadius: 16,
-                            padding: 12,
-                            backgroundColor: "rgba(255,255,255,0.03)",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: theme.colors.text,
-                              fontWeight: "800",
-                              fontSize: 12,
-                            }}
-                          >
-                            {String(r.label ?? "")}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : null}
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
-                    Delivery Fee
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.colors.text,
-                      fontWeight: "900",
-                      fontSize: 12,
-                    }}
+                        Order via Gojek
+                      </Text>
+                    </View>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setGymModalOpen(true)}
+                    style={{ flex: 1 }}
                   >
-                    {quoteQuery.isLoading
-                      ? "Loading…"
-                      : `Rp ${Number(quoteQuery.data?.fee ?? 0).toLocaleString("id-ID")}`}
-                  </Text>
+                    <View
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                        borderRadius: 16,
+                        paddingVertical: 12,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                      }}
+                    >
+                      <Text
+                        style={{ color: theme.colors.text, fontWeight: "900" }}
+                      >
+                        Gym Coverage
+                      </Text>
+                    </View>
+                  </Pressable>
                 </View>
               </Card>
             </View>
@@ -1244,13 +1258,14 @@ export default function CheckoutScreen() {
             )}
 
             <TextField
-              label="Full Address"
+              label="Alamat Pengantaran"
               value={deliveryAddress}
               onChangeText={setDeliveryAddress}
-              placeholder="St. Number, Building, floor..."
+              placeholder="Tulis alamat lengkap untuk pengantaran"
               multiline
               style={{ minHeight: 60 }}
             />
+
             <TextField
               label="Courier Notes"
               value={deliveryNotes}
@@ -1426,6 +1441,7 @@ export default function CheckoutScreen() {
             onPress={() => createOrder.mutate()}
             disabled={
               createOrder.isPending ||
+              waOrder.isPending ||
               cartItems.length === 0 ||
               !deliveryAddress ||
               !paymentMethod ||
@@ -1438,8 +1454,141 @@ export default function CheckoutScreen() {
               {createOrder.isPending ? "Processing..." : "Confirm & Order"}
             </Text>
           </Button>
+
+          <Pressable
+            onPress={() => waOrder.mutate()}
+            disabled={
+              waOrder.isPending ||
+              createOrder.isPending ||
+              cartItems.length === 0 ||
+              !deliveryAddress ||
+              !deliveryOk
+            }
+          >
+            <View
+              style={{
+                height: 54,
+                borderRadius: 20,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.10)",
+                backgroundColor: "#151515",
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "row",
+                gap: 10,
+                opacity:
+                  waOrder.isPending ||
+                  createOrder.isPending ||
+                  cartItems.length === 0 ||
+                  !deliveryAddress ||
+                  !deliveryOk
+                    ? 0.4
+                    : 1,
+              }}
+            >
+              <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+              <Text style={{ color: "#fff", fontWeight: "900", fontSize: 14 }}>
+                {waOrder.isPending
+                  ? "Membuka WhatsApp..."
+                  : "Order via WhatsApp"}
+              </Text>
+            </View>
+          </Pressable>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={customMapEnabled && mapOpen}
+        animationType="slide"
+        transparent
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.85)" }}>
+          <View
+            style={{
+              paddingTop: Math.max(insets.top, 12),
+              paddingHorizontal: 14,
+              paddingBottom: 12,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              backgroundColor: theme.colors.bg,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border,
+            }}
+          >
+            <Pressable onPress={() => setMapOpen(false)}>
+              <Text style={{ color: theme.colors.green, fontWeight: "900" }}>
+                Close
+              </Text>
+            </Pressable>
+            <Text
+              style={{ color: theme.colors.text, fontWeight: "900" }}
+              numberOfLines={1}
+            >
+              Pilih Lokasi
+            </Text>
+            <Pressable
+              onPress={async () => {
+                try {
+                  const perm =
+                    await Location.requestForegroundPermissionsAsync();
+                  if (!perm.granted) return;
+                  const pos = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Highest,
+                  });
+                  const lat = pos.coords.latitude;
+                  const lng = pos.coords.longitude;
+                  setDeliveryLat(lat);
+                  setDeliveryLng(lng);
+                  setDidManualAddress(false);
+                  mapRef.current?.setPoint(lat, lng, 19);
+                } catch {}
+              }}
+            >
+              <Text style={{ color: theme.colors.text, fontWeight: "900" }}>
+                My Location
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={{ flex: 1, padding: 14 }}>
+            {deliveryLat != null && deliveryLng != null ? (
+              <OsmMapPicker
+                ref={(r) => {
+                  mapRef.current = r;
+                }}
+                lat={deliveryLat}
+                lng={deliveryLng}
+                zoom={19}
+                onChange={(lat, lng) => {
+                  setDeliveryLat(lat);
+                  setDeliveryLng(lng);
+                  setDidManualAddress(false);
+                }}
+                height={520}
+              />
+            ) : null}
+            <View style={{ height: 12 }} />
+            <Pressable onPress={() => setMapOpen(false)}>
+              <View
+                style={{
+                  height: 54,
+                  borderRadius: 18,
+                  backgroundColor: theme.colors.green,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ color: "#041009", fontWeight: "900" }}>
+                  Pakai Lokasi Ini
+                </Text>
+              </View>
+            </Pressable>
+            <View style={{ height: Math.max(insets.bottom, 12) }} />
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }

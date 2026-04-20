@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\MemberProfile;
 use App\Models\TrainerProfile;
 use App\Services\ExpoNotificationService;
 use Illuminate\Http\Request;
@@ -70,6 +71,20 @@ class MeController extends Controller
                 $tp->save();
             }
         }
+
+        return $this->show($request);
+    }
+
+    public function updateMemberProfile(Request $request)
+    {
+        $data = $request->validate([
+            'default_gym_id' => ['nullable', 'integer', 'exists:gyms,id'],
+        ]);
+
+        MemberProfile::query()->updateOrCreate(
+            ['user_id' => $request->user()->id],
+            ['default_gym_id' => $data['default_gym_id'] ?? null],
+        );
 
         return $this->show($request);
     }

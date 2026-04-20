@@ -1,10 +1,17 @@
 export type RootStackParamList = {
   Auth: undefined;
-  App: undefined;
+  App:
+    | {
+        screen?: keyof AppTabParamList;
+        params?: any;
+      }
+    | undefined;
   Onboarding: undefined;
   ProductDetail: { slug: string };
   OrderDetail: { orderNumber: string; orderId?: number };
+  Chats: undefined;
   ChatThread: { orderNumber: string; orderId?: number };
+  Nutrition: undefined;
   Checkout: undefined;
   Profile: undefined;
   Notifications: undefined;
@@ -48,7 +55,6 @@ export type AppTabParamList = {
   Products: undefined;
   Cart: undefined;
   Orders: undefined;
-  Chats: undefined;
   Flamehub: undefined;
   Queue: { preset?: "all" | "unpaid" } | undefined;
 };

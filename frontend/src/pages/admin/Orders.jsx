@@ -193,7 +193,9 @@ export default function Orders() {
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                   <CreditCard className="h-3 w-3" />
-                  <span className="truncate">{paymentMethodLabel}</span>
+                  <span className="truncate text-sm font-black text-[var(--accent)]">
+                    {paymentMethodLabel}
+                  </span>
                 </div>
                 <div className="flex flex-col gap-1 text-xs text-zinc-500">
                   <div className="flex items-center gap-1.5">

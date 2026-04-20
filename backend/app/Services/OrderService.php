@@ -91,7 +91,11 @@ class OrderService
             $order->points_used_source = null;
             $order->points_earned_trainer = 0;
             $order->gym_id = $gym?->id;
-            $order->delivery_address = $gym ? $this->formatGymAddress($gym) : ($cartData['delivery_address'] ?? '');
+            $addr = isset($cartData['delivery_address']) ? (string) $cartData['delivery_address'] : '';
+            $addr = trim($addr);
+            $order->delivery_address = $addr !== ''
+                ? $addr
+                : ($gym ? $this->formatGymAddress($gym) : '');
             $order->delivery_lat = $gym ? null : $deliveryLat;
             $order->delivery_lng = $gym ? null : $deliveryLng;
             $order->delivery_distance_m = $gym ? null : $deliveryDistanceM;

@@ -20,6 +20,7 @@ import OrdersScreen from "../screens/OrdersScreen";
 import OrderDetailScreen from "../screens/OrderDetailScreen";
 import ChatListScreen from "../screens/ChatListScreen";
 import ChatThreadScreen from "../screens/ChatThreadScreen";
+import NutritionScreen from "../screens/NutritionScreen";
 import ArticleDetailScreen from "../screens/ArticleDetailScreen";
 import FlamehubFeedScreen from "../screens/flamehub/FlamehubFeedScreen";
 import FlamehubCreatePostScreen from "../screens/flamehub/FlamehubCreatePostScreen";
@@ -58,7 +59,6 @@ import { theme } from "../ui/theme";
 import { toPublicUrl } from "../lib/assets";
 import { useNavigation } from "@react-navigation/native";
 import { useCartStore } from "../store/cartStore";
-import { useQuery } from "@tanstack/react-query";
 import * as SecureStore from "expo-secure-store";
 import { navigationRef } from "./navRef";
 
@@ -185,24 +185,7 @@ function AppTabs() {
   const showStaffDashboard = isCashier;
   const showQueue = isCashier;
   const showOrders = !isCashier;
-  const showChats = Boolean(token) && !isAdmin && !isCashier;
   const cartCount = useCartStore((s) => s.totalItems());
-
-  const chatThreadsQuery = useQuery({
-    queryKey: ["chatThreads"],
-    enabled: showChats,
-    queryFn: async () => (await api.get("/chats/threads")).data?.threads ?? [],
-    refetchInterval: 8000,
-    staleTime: 5000,
-  });
-
-  const chatUnreadCount = useMemo(() => {
-    const list = chatThreadsQuery.data ?? [];
-    return list.reduce(
-      (sum: number, t: any) => sum + (Number(t?.unread_count ?? 0) || 0),
-      0,
-    );
-  }, [chatThreadsQuery.data]);
 
   return (
     <Tab.Navigator
@@ -230,16 +213,10 @@ function AppTabs() {
             Cart: "cart",
             Queue: "list",
             Orders: "receipt",
-            Chats: "chatbubble-ellipses",
           };
           const name = map[route.name] ?? "ellipse";
           const iconSize = size ?? 22;
-          const badgeCount =
-            route.name === "Cart"
-              ? cartCount
-              : route.name === "Chats"
-                ? chatUnreadCount
-                : 0;
+          const badgeCount = route.name === "Cart" ? cartCount : 0;
           const showBadge = badgeCount > 0;
           const badgeText = badgeCount > 9 ? "9+" : String(badgeCount);
           return (
@@ -318,9 +295,6 @@ function AppTabs() {
         />
       ) : null}
       {showCart ? <Tab.Screen name="Cart" component={CartScreen} /> : null}
-      {showChats ? (
-        <Tab.Screen name="Chats" component={ChatListScreen} />
-      ) : null}
       {showOrders ? (
         <Tab.Screen
           name="Orders"
@@ -538,6 +512,22 @@ export default function RootNavigator() {
           options={{
             title: "Order",
             ...stackScreenAnimation, // slide dari kanan
+          }}
+        />
+        <RootStack.Screen
+          name="Nutrition"
+          component={NutritionScreen}
+          options={{
+            title: "Nutrition",
+            ...stackScreenAnimation,
+          }}
+        />
+        <RootStack.Screen
+          name="Chats"
+          component={ChatListScreen}
+          options={{
+            title: "Chats",
+            ...stackScreenAnimation,
           }}
         />
         <RootStack.Screen

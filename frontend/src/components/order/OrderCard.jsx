@@ -11,6 +11,16 @@ export default function OrderCard({ order }) {
 
   const status = String(order?.status ?? "").toLowerCase();
   const payment = String(order?.payment_status ?? "").toLowerCase();
+  const paymentMethodLabel = (() => {
+    const v = String(order?.payment_method ?? "").trim();
+    if (!v) return "-";
+    return v
+      .replace(/[_-]/g, " ")
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => w[0]?.toUpperCase() + w.slice(1))
+      .join(" ");
+  })();
 
   const statusBorder = (() => {
     if (status === "pending")
@@ -95,6 +105,9 @@ export default function OrderCard({ order }) {
           ) : null}
           <div className="mt-1 text-[10px] font-semibold text-zinc-400 capitalize">
             {order.status}
+          </div>
+          <div className="mt-1 text-[12px] font-black text-[var(--accent)] uppercase tracking-wide">
+            Payment: {paymentMethodLabel}
           </div>
           <div className="mt-2 text-[13px] font-bold text-zinc-200">
             Total: Rp {Number(order.total_amount ?? 0).toLocaleString("id-ID")}

@@ -61,6 +61,7 @@ export default function OrderDetailScreen() {
   const { refreshing, onRefresh } = usePullToRefresh();
   const toast = useToast();
   const prevPaymentStatus = useRef<string | null>(null);
+  const [paymentBusy, setPaymentBusy] = useState(false);
 
   // Cek apakah user adalah trainer
   const isTrainer = (user?.roles ?? []).includes("trainer");
@@ -97,12 +98,24 @@ export default function OrderDetailScreen() {
   }, [order?.payment_status, order?.order_number, toast]);
 
   async function ensurePaymentUrl() {
-    if (!orderId) return;
+    if (!orderId) return "";
     try {
+      setPaymentBusy(true);
       const r = await api.post(`/orders/${orderId}/doku/checkout`);
       setTx(r.data?.transaction ?? null);
-      setPaymentUrl(r.data?.payment_url ?? "");
-    } catch {}
+      const url = r.data?.payment_url ? String(r.data.payment_url) : "";
+      setPaymentUrl(url);
+      return url;
+    } catch (e: any) {
+      toast.show({
+        variant: "error",
+        title: "Payment link gagal",
+        message: e?.response?.data?.message ?? e?.message ?? "Coba lagi.",
+      });
+      return "";
+    } finally {
+      setPaymentBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -182,7 +195,7 @@ export default function OrderDetailScreen() {
             </View>
 
             {/* -- ACTION: PAYMENT BUTTON (UNPAID ONLY) -- */}
-            {isDoku && isUnpaid && (
+            {isDoku && isUnpaid && order?.payment_method !== "cod" && (
               <Card
                 style={{
                   padding: 16,
@@ -211,16 +224,20 @@ export default function OrderDetailScreen() {
                   </View>
                 </View>
                 <Button
+                  disabled={paymentBusy}
                   onPress={async () => {
-                    if (!paymentUrl) await ensurePaymentUrl();
-                    if (paymentUrl)
-                      await WebBrowser.openBrowserAsync(paymentUrl);
+                    const url = paymentUrl || (await ensurePaymentUrl());
+                    if (!url) return;
+                    await WebBrowser.openBrowserAsync(url);
                   }}
                 >
                   Pay Now
                 </Button>
                 <Pressable
-                  onPress={ensurePaymentUrl}
+                  onPress={async () => {
+                    await ensurePaymentUrl();
+                  }}
+                  disabled={paymentBusy}
                   style={{ alignSelf: "center" }}
                 >
                   <Text
@@ -228,6 +245,7 @@ export default function OrderDetailScreen() {
                       color: theme.colors.muted,
                       fontSize: 12,
                       textDecorationLine: "underline",
+                      opacity: paymentBusy ? 0.6 : 1,
                     }}
                   >
                     Refresh Link

@@ -5,7 +5,7 @@ import { api } from "@/lib/axios";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import { Button } from "@/components/ui/button";
-import OsmMapPicker from "@/components/common/OsmMapPicker";
+import { toPublicUrl } from "@/lib/assets";
 import {
   MapPin,
   Truck,
@@ -19,12 +19,23 @@ import {
   AlertCircle,
   Loader2,
   Sparkles,
-  LocateFixed,
 } from "lucide-react";
+
+const WA_PHONE = "6285182841385";
 
 function formatGymAddress(g) {
   const parts = [g?.gym_name, g?.address, g?.city, g?.province].filter(Boolean);
   return parts.join(", ");
+}
+
+function gymImageUrl(path) {
+  if (!path) return null;
+  const p = String(path).trim().replace(/^\/+/, "");
+  if (!p) return null;
+  if (/^https?:\/\//i.test(p)) return p;
+  if (p.startsWith("uploads/") || p.startsWith("storage/"))
+    return toPublicUrl(p);
+  return toPublicUrl(`storage/${p}`);
 }
 
 function selectedChoices(item) {
@@ -72,6 +83,22 @@ export default function Checkout() {
   const [addressQuery, setAddressQuery] = useState("");
   const [debouncedAddressQuery, setDebouncedAddressQuery] = useState("");
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [gymPickerOpen, setGymPickerOpen] = useState(false);
+  const [gymSearch, setGymSearch] = useState("");
+  const customMapEnabled = false;
+
+  const openGojek = () => {
+    window.open(
+      "https://gofood.link/a/LY83SJu",
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
+  const openWhatsApp = (text) => {
+    const url = `https://wa.me/${WA_PHONE}?text=${encodeURIComponent(String(text ?? ""))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   const historyKey = useMemo(() => {
     const id = user?.id != null ? String(user.id) : "me";
@@ -163,13 +190,28 @@ export default function Checkout() {
     return (gymsQuery.data ?? []).find((g) => Number(g.id) === id) ?? null;
   }, [gymId, gymsQuery.data]);
 
+  const filteredGyms = useMemo(() => {
+    const q = String(gymSearch ?? "")
+      .trim()
+      .toLowerCase();
+    const list = gymsQuery.data ?? [];
+    if (!q) return list;
+    return list.filter((g) => {
+      const a = String(g?.gym_name ?? "").toLowerCase();
+      const b = String(g?.address ?? "").toLowerCase();
+      const c = String(g?.city ?? "").toLowerCase();
+      const d = String(g?.province ?? "").toLowerCase();
+      return a.includes(q) || b.includes(q) || c.includes(q) || d.includes(q);
+    });
+  }, [gymsQuery.data, gymSearch]);
+
   useEffect(() => {
     if (selectedGym) {
       setDeliveryAddress(formatGymAddress(selectedGym));
       setDeliveryFee(0);
       setDeliveryLat(null);
       setDeliveryLng(null);
-      setAutoAddress(false);
+      setAutoAddress(true);
     }
   }, [selectedGym?.id]);
 
@@ -260,7 +302,8 @@ export default function Checkout() {
 
   const quoteQuery = useQuery({
     queryKey: ["delivery", "quote", { lat: deliveryLat, lng: deliveryLng }],
-    enabled: !gymId && deliveryLat != null && deliveryLng != null,
+    enabled:
+      customMapEnabled && !gymId && deliveryLat != null && deliveryLng != null,
     queryFn: async () =>
       (
         await api.get("/delivery/quote", {
@@ -271,13 +314,15 @@ export default function Checkout() {
   });
 
   useEffect(() => {
+    if (!customMapEnabled) return;
     if (gymId) return;
     const q = quoteQuery.data ?? null;
     if (!q) return;
     setDeliveryFee(Number(q.fee ?? 0) || 0);
-  }, [gymId, quoteQuery.data]);
+  }, [customMapEnabled, gymId, quoteQuery.data]);
 
   useEffect(() => {
+    if (!customMapEnabled) return;
     if (gymId) return;
     if (deliveryLat == null || deliveryLng == null) return;
     if (!autoAddress && String(deliveryAddress ?? "").trim()) return;
@@ -297,7 +342,14 @@ export default function Checkout() {
     }, 450);
 
     return () => window.clearTimeout(t);
-  }, [gymId, deliveryLat, deliveryLng, autoAddress, deliveryAddress]);
+  }, [
+    customMapEnabled,
+    gymId,
+    deliveryLat,
+    deliveryLng,
+    autoAddress,
+    deliveryAddress,
+  ]);
 
   useEffect(() => {
     const t = window.setTimeout(
@@ -309,7 +361,7 @@ export default function Checkout() {
 
   const addressSuggestQuery = useQuery({
     queryKey: ["delivery", "geocodeSearch", debouncedAddressQuery],
-    enabled: !gymId && debouncedAddressQuery.length >= 3,
+    enabled: customMapEnabled && !gymId && debouncedAddressQuery.length >= 3,
     queryFn: async () =>
       (
         await api.get("/delivery/geocode-search", {
@@ -328,13 +380,13 @@ export default function Checkout() {
     () => ({
       gym_id: gymId ? Number(gymId) : null,
       delivery_address: deliveryAddress,
-      delivery_lat: gymId ? null : deliveryLat,
-      delivery_lng: gymId ? null : deliveryLng,
+      delivery_lat: null,
+      delivery_lng: null,
       delivery_notes: deliveryNotes || null,
       recipient_name: recipientName,
       recipient_phone: recipientPhone,
       payment_method: paymentMethod || null,
-      delivery_fee: gymId ? 0 : Number(deliveryFee ?? 0) || 0,
+      delivery_fee: 0,
       discount_amount: 0,
       items: items.map((it) => ({
         product_id: it.product.id,
@@ -358,7 +410,14 @@ export default function Checkout() {
   );
 
   const mutation = useMutation({
-    mutationFn: async () => (await api.post("/orders", payload)).data.order,
+    mutationFn: async () => {
+      if (!gymId) {
+        throw new Error(
+          "Custom address sementara nonaktif. Pilih Gym Coverage atau Order via Gojek.",
+        );
+      }
+      return (await api.post("/orders", payload)).data.order;
+    },
     onSuccess: async (order) => {
       try {
         const now = Date.now();
@@ -373,18 +432,6 @@ export default function Checkout() {
             label: g?.gym_name
               ? `Gym: ${String(g.gym_name)}`
               : `Gym #${String(gymId)}`,
-            created_at: now,
-          };
-        } else if (deliveryLat != null && deliveryLng != null) {
-          const lat = Number(deliveryLat);
-          const lng = Number(deliveryLng);
-          entry = {
-            id: `loc:${lat.toFixed(5)},${lng.toFixed(5)}`,
-            kind: "custom",
-            lat,
-            lng,
-            address: String(deliveryAddress ?? "").trim(),
-            label: String(deliveryAddress ?? "").trim() || "Custom location",
             created_at: now,
           };
         }
@@ -415,15 +462,78 @@ export default function Checkout() {
     },
   });
 
+  const waMutation = useMutation({
+    mutationFn: async () => {
+      if (!gymId) {
+        throw new Error("Pilih Gym Coverage dulu untuk order via WhatsApp.");
+      }
+      const addr = String(deliveryAddress ?? "").trim();
+      if (!addr) throw new Error("Alamat pengantaran wajib diisi.");
+      if (!items.length) throw new Error("Cart masih kosong.");
+
+      const waPayload = {
+        ...payload,
+        gym_id: Number(gymId),
+        delivery_address: addr,
+        delivery_lat: null,
+        delivery_lng: null,
+        delivery_fee: 0,
+        payment_method: paymentMethod || null,
+      };
+
+      const order = (await api.post("/orders", waPayload)).data.order;
+      if (!order?.id) throw new Error("Gagal membuat order.");
+      let paymentUrl = "";
+      if (String(paymentMethod ?? "").startsWith("doku-")) {
+        try {
+          const pr = await api.post(`/orders/${order.id}/doku/checkout`);
+          paymentUrl = pr.data?.payment_url ? String(pr.data.payment_url) : "";
+        } catch {}
+      }
+      return { order, paymentUrl };
+    },
+    onSuccess: ({ order, paymentUrl }) => {
+      clearCart();
+      const roleLabel = isTrainerCheckout ? "Trainer" : "Member";
+      const lines = [];
+      lines.push("Halo Flamestreet, saya mau order via WhatsApp.");
+      lines.push("");
+      lines.push(`Nama: ${user?.full_name ?? recipientName ?? "-"}`);
+      lines.push(`Role: ${roleLabel}`);
+      lines.push(`Alamat Pengantaran: ${String(deliveryAddress ?? "").trim()}`);
+      lines.push("");
+      lines.push("Items:");
+      items.forEach((it, idx) => {
+        const qty = Number(it.quantity ?? 1);
+        const price = Number(it.product?.price ?? 0) * qty;
+        lines.push(
+          `${idx + 1}) ${it.product?.name} x${qty} - Rp ${price.toLocaleString("id-ID")}`,
+        );
+        const mods = selectedChoices(it);
+        if (mods.length) lines.push(`   • ${mods.join(" • ")}`);
+      });
+      lines.push("");
+      lines.push(`Subtotal: Rp ${Number(subtotal()).toLocaleString("id-ID")}`);
+      lines.push(`Total: Rp ${Number(subtotal()).toLocaleString("id-ID")}`);
+      lines.push("");
+      lines.push(`Order Number: #${order?.order_number ?? ""}`);
+      if (paymentUrl) lines.push(`Payment (DOKU): ${paymentUrl}`);
+      openWhatsApp(lines.join("\n"));
+      navigate(`/orders/${order.order_number}`);
+    },
+    onError: (e) => {
+      setError(
+        e?.response?.data?.message ?? e?.message ?? "WhatsApp order failed",
+      );
+    },
+  });
+  // ini variable untuk data dan balance , cek kembali apakah sudah benar
   const pointsBalance = Number(pointsQuery.data?.balance ?? 0) || 0;
-  const pointsDue = Math.round(
-    (Number(subtotal()) || 0) + (Number(deliveryFee) || 0),
-  );
+  const pointsDue = Math.round(Number(subtotal()) || 0);
   const pointsOk =
     paymentMethod !== "flame-points" || pointsBalance >= pointsDue;
-  const needPaidDeliveryLocation =
-    !gymId && (deliveryLat == null || deliveryLng == null);
-  const grandTotal = (Number(subtotal()) || 0) + (Number(deliveryFee) || 0);
+  const needPaidDeliveryLocation = !gymId;
+  const grandTotal = Number(subtotal()) || 0;
 
   useEffect(() => {
     if (!suggestOpen) return;
@@ -455,19 +565,7 @@ export default function Checkout() {
     }
 
     if (it.kind === "custom" && it.lat != null && it.lng != null) {
-      setGymId("");
-      setDeliveryLat(Number(it.lat));
-      setDeliveryLng(Number(it.lng));
-      setMapFocusSignal((n) => n + 1);
-      const addr = String(it.address ?? it.label ?? "").trim();
-      if (addr) {
-        setDeliveryAddress(addr);
-        setAutoAddress(true);
-      } else {
-        setDeliveryAddress("");
-        setAutoAddress(false);
-      }
-      setDeliveryFee(0);
+      openGojek();
     }
   };
 
@@ -490,6 +588,123 @@ export default function Checkout() {
       <div className="grid w-full min-w-0 gap-8 lg:grid-cols-12 items-start">
         {/* LEFT COLUMN: FORMS */}
         <div className="min-w-0 lg:col-span-7 space-y-6">
+          {gymPickerOpen ? (
+            <div className="fixed inset-0 z-[3000] bg-black/70 backdrop-blur-sm">
+              <div className="h-full w-full overflow-hidden bg-zinc-950">
+                <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-zinc-950/95 px-4 py-3 backdrop-blur">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
+                      Gym Coverage
+                    </div>
+                    <div className="truncate text-[14px] font-black text-white">
+                      Pilih Gym
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGymPickerOpen(false)}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-black text-white"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="p-4">
+                  <div className="relative">
+                    <input
+                      className="h-11 w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 text-sm font-semibold text-white outline-none focus:border-[var(--accent)] transition-all placeholder:text-zinc-600"
+                      placeholder="Cari gym / alamat / kota…"
+                      value={gymSearch}
+                      onChange={(e) => setGymSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="h-[calc(100vh-110px)] overflow-y-auto p-4 pt-0">
+                  {gymsQuery.isLoading ? (
+                    <div className="px-2 py-6 text-center text-sm font-semibold text-zinc-400">
+                      Loading gyms…
+                    </div>
+                  ) : filteredGyms.length ? (
+                    <div className="space-y-2">
+                      {filteredGyms.map((g) => {
+                        const active = String(gymId) === String(g.id);
+                        const img = gymImageUrl(g.image);
+                        const addr = formatGymAddress(g);
+                        return (
+                          <button
+                            key={g.id}
+                            type="button"
+                            className={`w-full rounded-2xl border p-3 text-left transition-all ${active ? "border-[var(--accent)] bg-[var(--accent)]/5" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
+                            onClick={async () => {
+                              const id = String(g.id);
+                              setDidInitGymId(true);
+                              setGymId(id);
+                              setGymPickerOpen(false);
+                              try {
+                                localStorage.setItem(
+                                  "flamestreet_default_gym_id",
+                                  id,
+                                );
+                              } catch {}
+                              if (!isTrainerCheckout) {
+                                try {
+                                  await api.put("/me/member-profile", {
+                                    default_gym_id: Number(g.id),
+                                  });
+                                } catch {}
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900">
+                                {img ? (
+                                  <img
+                                    alt=""
+                                    src={img}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      e.currentTarget.src = "/flame-icon.png";
+                                    }}
+                                  />
+                                ) : (
+                                  <img
+                                    alt=""
+                                    src="/flame-icon.png"
+                                    className="h-full w-full object-contain p-3 opacity-30"
+                                  />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-[13px] font-black text-white">
+                                  {g.gym_name}
+                                </div>
+                                <div className="mt-1 line-clamp-2 text-[11px] font-semibold text-white/50">
+                                  {addr}
+                                </div>
+                              </div>
+                              {active ? (
+                                <CheckCircle2
+                                  size={16}
+                                  className="shrink-0 text-[var(--accent)]"
+                                />
+                              ) : null}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="px-2 py-6 text-center text-sm font-semibold text-zinc-400">
+                      Tidak ada gym.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {/* Delivery Section */}
           <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6 space-y-6">
             <div className="flex items-center gap-2 pb-4 border-b border-zinc-900">
@@ -509,43 +724,27 @@ export default function Checkout() {
                     type="button"
                     onClick={() => {
                       setDidInitGymId(true);
-                      setGymId("");
-                      setDeliveryAddress("");
-                      setDeliveryFee(0);
+                      openGojek();
                     }}
-                    className={`rounded-xl border p-3 text-center transition-all ${!gymId ? "border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)]" : "border-zinc-800 bg-zinc-900/50 text-zinc-500"}`}
+                    className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 text-center text-zinc-500 transition-all hover:border-[var(--accent)] hover:text-[var(--accent)]"
                   >
                     <MapPin size={16} className="mx-auto mb-1" />
                     <span className="text-[11px] font-bold uppercase">
-                      Custom Address
+                      Order via Gojek
                     </span>
                   </button>
-                  <div className="relative">
-                    <select
-                      className={`w-full h-full appearance-none rounded-xl border p-3 text-center text-[11px] font-bold uppercase outline-none transition-all ${gymId ? "border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)]" : "border-zinc-800 bg-zinc-900/50 text-zinc-500"}`}
-                      value={gymId}
-                      onChange={(e) => setGymId(e.target.value)}
-                    >
-                      <option value="" className="bg-zinc-900 text-white">
-                        Select Gym
-                      </option>
-                      {(gymsQuery.data ?? []).map((g) => (
-                        <option
-                          key={g.id}
-                          value={String(g.id)}
-                          className="bg-zinc-900 text-white"
-                        >
-                          {g.gym_name}
-                        </option>
-                      ))}
-                    </select>
-                    {gymId && (
-                      <CheckCircle2
-                        size={12}
-                        className="absolute top-2 right-2 text-[var(--accent)]"
-                      />
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGymPickerOpen(true)}
+                    className={`rounded-xl border p-3 text-center transition-all ${gymId ? "border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)]" : "border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:border-[var(--accent)] hover:text-[var(--accent)]"}`}
+                  >
+                    <Truck size={16} className="mx-auto mb-1" />
+                    <span className="text-[11px] font-bold uppercase">
+                      {gymId
+                        ? (selectedGym?.gym_name ?? "Gym Coverage")
+                        : "Gym Coverage"}
+                    </span>
+                  </button>
                 </div>
 
                 {locationHistory.length ? (
@@ -592,113 +791,34 @@ export default function Checkout() {
 
               {!gymId ? (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                      Pin Location
+                  <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-4">
+                    <div className="text-[12px] font-black text-white">
+                      Custom Address (sementara nonaktif)
                     </div>
-                  </div>
-
-                  {locWarning ? (
-                    <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[11px] font-semibold text-amber-200">
-                      {locWarning}
+                    <div className="mt-1 text-[11px] font-semibold text-zinc-400">
+                      Untuk alamat di luar gym coverage, silakan order via
+                      Gojek.
                     </div>
-                  ) : null}
-
-                  <OsmMapPicker
-                    value={
-                      deliveryLat != null && deliveryLng != null
-                        ? { lat: deliveryLat, lng: deliveryLng }
-                        : null
-                    }
-                    onChange={({ lat, lng }) => {
-                      setDeliveryLat(lat);
-                      setDeliveryLng(lng);
-                    }}
-                    height={260}
-                    focusSignal={mapFocusSignal}
-                    focusZoom={19}
-                  >
-                    <div className="absolute bottom-3 right-3 z-[1000] pointer-events-auto">
+                    <div className="mt-3 flex gap-2">
                       <button
                         type="button"
-                        className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-zinc-950/80 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white shadow-2xl backdrop-blur transition hover:bg-zinc-950 active:scale-[0.98] disabled:opacity-50"
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={() => {
-                          pickAccurateLocation()
-                            .then(({ lat, lng }) => {
-                              setDeliveryLat(lat);
-                              setDeliveryLng(lng);
-                              setMapFocusSignal((n) => n + 1);
-                              return reverseGeocode(lat, lng);
-                            })
-                            .then((label) => {
-                              if (!label) return;
-                              setDeliveryAddress(label);
-                              setAutoAddress(true);
-                            })
-                            .catch(() => {
-                              setLocWarning(
-                                "Gagal ambil lokasi akurat. Pastikan GPS aktif dan izin lokasi diizinkan.",
-                              );
-                            });
-                        }}
-                        disabled={locLoading}
+                        onClick={openGojek}
+                        className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-white"
                       >
-                        <LocateFixed
-                          size={18}
-                          className="text-[var(--accent)]"
-                        />
-                        {locLoading ? "Locating…" : "My Location"}
+                        Order via Gojek
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDidInitGymId(true);
+                          setGymPickerOpen(true);
+                        }}
+                        className="rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-[var(--accent)]"
+                      >
+                        Pilih Gym
                       </button>
                     </div>
-                  </OsmMapPicker>
-
-                  {locAccuracyM != null ? (
-                    <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-                      Accuracy: ±{Math.round(locAccuracyM)}m
-                    </div>
-                  ) : null}
-
-                  {quoteQuery.isLoading ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-[11px] font-bold text-zinc-400">
-                      <Loader2 size={14} className="animate-spin" /> Calculating
-                      delivery…
-                    </div>
-                  ) : quoteQuery.isError ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-[11px] font-bold text-red-300">
-                      <AlertCircle size={14} /> Delivery quote unavailable
-                    </div>
-                  ) : quoteQuery.data ? (
-                    <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300/80">
-                            Nearest Branch
-                          </div>
-                          <div className="truncate text-[12px] font-black text-white">
-                            {quoteQuery.data.branch?.name ?? "Branch"}
-                          </div>
-                          <div className="mt-0.5 text-[11px] font-semibold text-white/50">
-                            {(
-                              Number(quoteQuery.data.distance_m ?? 0) / 1000
-                            ).toFixed(2)}{" "}
-                            km
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
-                            Fee
-                          </div>
-                          <div className="text-sm font-black text-[var(--accent)] tabular-nums">
-                            Rp{" "}
-                            {Number(quoteQuery.data.fee ?? 0).toLocaleString(
-                              "id-ID",
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
+                  </div>
                 </div>
               ) : null}
 
@@ -707,70 +827,18 @@ export default function Checkout() {
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
                     Full Address
                   </label>
-                  {!gymId ? (
-                    <div className="relative" data-addr-suggest-wrap>
-                      <input
-                        className="h-11 w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 text-sm font-semibold text-white outline-none focus:border-[var(--accent)] transition-all placeholder:text-zinc-600"
-                        placeholder="Cari alamat / nama toko / gedung / jalan…"
-                        value={addressQuery}
-                        onChange={(e) => {
-                          setAddressQuery(e.target.value);
-                          setSuggestOpen(true);
-                        }}
-                        onFocus={() => setSuggestOpen(true)}
-                      />
-
-                      {suggestOpen && debouncedAddressQuery.length >= 3 ? (
-                        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[2000] overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 shadow-2xl shadow-black/40 backdrop-blur">
-                          {addressSuggestQuery.isLoading ? (
-                            <div className="px-4 py-3 text-sm font-semibold text-zinc-400">
-                              Searching…
-                            </div>
-                          ) : addressSuggestQuery.isError ? (
-                            <div className="px-4 py-3 text-sm font-semibold text-rose-300">
-                              Search gagal.
-                            </div>
-                          ) : !suggestions.length ? (
-                            <div className="px-4 py-3 text-sm font-semibold text-zinc-400">
-                              Tidak ada hasil.
-                            </div>
-                          ) : (
-                            <div className="p-2">
-                              {suggestions.map((s, idx) => (
-                                <button
-                                  key={`${s.lat}-${s.lng}-${idx}`}
-                                  type="button"
-                                  className="w-full rounded-xl border border-transparent px-3 py-2 text-left hover:border-white/10 hover:bg-white/5"
-                                  onClick={() => {
-                                    setSuggestOpen(false);
-                                    setAddressQuery(s.label);
-                                    setDeliveryAddress(s.label);
-                                    setAutoAddress(true);
-                                    setDeliveryLat(Number(s.lat));
-                                    setDeliveryLng(Number(s.lng));
-                                    setMapFocusSignal((n) => n + 1);
-                                  }}
-                                >
-                                  <div className="line-clamp-2 text-[12px] font-bold text-zinc-100">
-                                    {s.label}
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
                   <textarea
                     className="min-h-24 w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none focus:border-[var(--accent)] transition-all disabled:opacity-50"
-                    placeholder="Street name, building, unit number..."
+                    placeholder={
+                      gymId
+                        ? "Street name, building, unit number..."
+                        : "Custom address sementara nonaktif. Gunakan Gym Coverage atau Order via Gojek."
+                    }
                     value={deliveryAddress}
                     onChange={(e) => {
                       setDeliveryAddress(e.target.value);
                       setAutoAddress(false);
                     }}
-                    disabled={Boolean(selectedGym)}
                   />
                 </div>
 
@@ -975,6 +1043,7 @@ export default function Checkout() {
                 !paymentMethod ||
                 !deliveryAddress ||
                 mutation.isPending ||
+                waMutation.isPending ||
                 !pointsOk ||
                 needPaidDeliveryLocation ||
                 (!gymId && quoteQuery.isLoading)
@@ -991,6 +1060,25 @@ export default function Checkout() {
                   />
                 </>
               )}
+            </button>
+
+            <button
+              type="button"
+              className="mt-3 w-full flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-zinc-900/60 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white transition-all hover:bg-zinc-900 disabled:opacity-30 disabled:grayscale"
+              onClick={() => {
+                setError(null);
+                waMutation.mutate();
+              }}
+              disabled={
+                !items.length ||
+                !deliveryAddress ||
+                waMutation.isPending ||
+                mutation.isPending ||
+                needPaidDeliveryLocation
+              }
+            >
+              <span className="text-[#25D366]">WhatsApp</span> Order + Payment
+              Link
             </button>
           </section>
         </div>

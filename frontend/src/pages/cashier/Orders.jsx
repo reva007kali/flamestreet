@@ -73,6 +73,17 @@ const statusConfig = {
 const statuses = Object.keys(statusConfig);
 const paymentStatuses = ["unpaid", "paid", "refunded"];
 
+function titleCase(s) {
+  const v = String(s ?? "").trim();
+  if (!v) return "-";
+  return v
+    .replace(/[_-]/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0]?.toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 export default function Orders() {
   const echo = useEcho();
   const qc = useQueryClient();
@@ -113,7 +124,7 @@ export default function Orders() {
   const orders = query.data?.data ?? [];
 
   return (
-    <div className="max-w-md mx-auto space-y-4 pb-24 p-3">
+    <div className="max-w-xl mx-auto space-y-4 pb-24">
       {/* COMPACT HEADER */}
       <div className="flex items-center justify-between px-1">
         <div>
@@ -173,6 +184,9 @@ export default function Orders() {
                       >
                         {o.payment_status}
                       </Badge>
+                    </div>
+                    <div className="mt-2 text-[12px] font-black uppercase tracking-wide text-[var(--accent)]">
+                      Payment: {titleCase(o.payment_method)}
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 mt-1.5">
                       <User size={10} className="text-zinc-600" />

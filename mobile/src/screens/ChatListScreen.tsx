@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
@@ -54,6 +54,7 @@ function fmtTime(iso?: string | null) {
 
 export default function ChatListScreen() {
   const navigation = useNavigation<any>();
+  const [manualRefreshing, setManualRefreshing] = useState(false);
 
   const q = useQuery({
     queryKey: ["chatThreads"],
@@ -131,8 +132,15 @@ export default function ChatListScreen() {
         contentContainerStyle={{ padding: theme.spacing.md, gap: 12 }}
         data={threads}
         keyExtractor={(i) => String(i.order_id)}
-        refreshing={q.isFetching}
-        onRefresh={() => q.refetch()}
+        refreshing={manualRefreshing}
+        onRefresh={async () => {
+          setManualRefreshing(true);
+          try {
+            await q.refetch();
+          } finally {
+            setManualRefreshing(false);
+          }
+        }}
         ListHeaderComponent={header}
         ListEmptyComponent={
           <Text style={{ color: theme.colors.muted }}>

@@ -40,6 +40,7 @@ import CourierChatThread from "@/pages/courier/ChatThread";
 import CashierQueue from "@/pages/cashier/Queue";
 import CashierOrders from "@/pages/cashier/Orders";
 import CashierDashboard from "@/pages/cashier/Dashboard";
+import CashierCheckoutPOS from "@/pages/cashier/CheckoutPOS";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminOrders from "@/pages/admin/Orders";
 import AdminCategories from "@/pages/admin/Categories";
@@ -233,6 +234,9 @@ export default function App() {
           <Route path="/cashier/dashboard" element={<CashierDashboard />} />
           <Route path="/cashier/queue" element={<CashierQueue />} />
           <Route path="/cashier/orders" element={<CashierOrders />} />
+          <Route path="/cashier/menu" element={<Menu basePath="/cashier" />} />
+          <Route path="/cashier/cart" element={<Cart basePath="/cashier" />} />
+          <Route path="/cashier/checkout" element={<CashierCheckoutPOS />} />
         </Route>
       </Route>
 

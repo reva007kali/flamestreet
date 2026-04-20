@@ -1,762 +1,819 @@
-import { useQuery } from "@tanstack/react-query";
-import { useNavigation } from "@react-navigation/native";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Dimensions,
   Image,
   Pressable,
   RefreshControl,
   ScrollView,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import * as SecureStore from "expo-secure-store";
 import { LinearGradient } from "expo-linear-gradient";
+import { useQuery } from "@tanstack/react-query";
+import * as SecureStore from "expo-secure-store";
+import Screen from "../ui/Screen";
+import { theme } from "../ui/theme";
 import { api } from "../lib/api";
 import { toPublicUrl } from "../lib/assets";
 import { useAuthStore } from "../store/authStore";
-import AppFlatList from "../ui/AppFlatList";
-import { theme } from "../ui/theme";
-import Screen from "../ui/Screen";
-import { usePullToRefresh } from "../lib/usePullToRefresh";
+import { Ionicons } from "@expo/vector-icons";
 import ChatFab from "../components/ChatFab";
+import { useNavigation } from "@react-navigation/native";
 
 const LAST_ADDRESS_KEY = "flamestreet_last_delivery_address";
 
+type Banner = { id: string; title: string; subtitle: string; image?: any };
+type Product = {
+  id: number;
+  slug: string;
+  name: string;
+  price: number;
+  image?: string | null;
+  is_featured?: boolean;
+};
+type Order = {
+  id: number;
+  order_number: string;
+  status: string;
+  total_amount: number;
+  items?: { product_name: string }[];
+};
+
+function fmtMoney(v: any) {
+  return `Rp ${Number(v ?? 0).toLocaleString("id-ID")}`;
+}
+
 export default function HomeScreen() {
+  const nav = useNavigation<any>();
+  const setUser = useAuthStore((s) => s.setUser);
   const user = useAuthStore((s) => s.user);
-  const navigation = useNavigation<any>();
-  const { width } = useWindowDimensions();
-  const { refreshing, onRefresh } = usePullToRefresh();
+  const roles = user?.roles ?? [];
+  const isTrainer = roles.includes("trainer");
 
-  const goRoot = (name: string, params?: any) => {
-    const parent = navigation.getParent?.();
-    if (parent?.navigate) parent.navigate(name, params);
-    else navigation.navigate(name, params);
-  };
+  const [defaultAddress, setDefaultAddress] = useState<string>("");
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fallbackBanners = [
-    {
-      id: "b1",
-      title: "Green Week",
-      subtitle: "Diskon menu pilihan",
-      image: require("../../assets/splash-icon.png"),
-    },
-    {
-      id: "b2",
-      title: "Free Delivery",
-      subtitle: "Untuk area tertentu",
-      image: require("../../assets/icon.png"),
-    },
-    {
-      id: "b3",
-      title: "Flame Points",
-      subtitle: "Kumpulkan & tukar",
-      image: require("../../assets/adaptive-icon.png"),
-    },
-  ];
+  const width = Dimensions.get("window").width;
+  const bannerW = width - 24;
+  const bannerH = Math.round((bannerW * 9) / 16);
 
-  const [bannerIndex, setBannerIndex] = useState(0);
-  const bannerIndexRef = useRef(0);
-  const bannerListRef = useRef<any>(null);
-  const [lastAddress, setLastAddress] = useState<string>("");
+  const meQuery = useQuery({
+    queryKey: ["me"],
+    queryFn: async () => (await api.get("/me")).data.user,
+    staleTime: 20_000,
+  });
 
-  const promoBannersQuery = useQuery({
-    queryKey: ["promo-banners", "member"],
+  useEffect(() => {
+    if (meQuery.data) setUser(meQuery.data);
+  }, [meQuery.data, setUser]);
+
+  const pointsQuery = useQuery({
+    queryKey: [isTrainer ? "trainerPoints" : "memberPoints"],
     queryFn: async () => {
-      const r = await api.get("/promo-banners", {
-        params: { audience: "member" },
-      });
-      return Array.isArray(r.data?.banners) ? r.data.banners : [];
+      const r = await api.get(isTrainer ? "/trainer/points" : "/member/points");
+      return r.data;
     },
+    staleTime: 20_000,
+  });
+
+  const promoQuery = useQuery({
+    queryKey: ["promo-banners", { audience: isTrainer ? "trainer" : "member" }],
+    queryFn: async () =>
+      (
+        await api.get("/promo-banners", {
+          params: { audience: isTrainer ? "trainer" : "member" },
+        })
+      ).data.banners,
+    staleTime: 30_000,
   });
 
   const productsQuery = useQuery({
-    queryKey: ["products", "featured"],
-    queryFn: async () => {
-      const r = await api.get("/products");
-      return Array.isArray(r.data?.data) ? r.data.data : [];
-    },
+    queryKey: ["products", { featured: true }],
+    queryFn: async (): Promise<Product[]> =>
+      (await api.get("/products", { params: { featured: 1 } })).data?.data ?? [],
+    staleTime: 30_000,
   });
 
   const ordersQuery = useQuery({
-    queryKey: ["orders", "recent"],
-    queryFn: async () => {
-      const r = await api.get("/orders");
-      return Array.isArray(r.data?.data) ? r.data.data : [];
-    },
+    queryKey: ["orders", { limit: 3 }],
+    queryFn: async (): Promise<Order[]> =>
+      (await api.get("/orders")).data?.data ?? [],
+    staleTime: 20_000,
   });
 
-  const flamehubFeedQuery = useQuery({
-    queryKey: ["flamehub", "feed", "home"],
-    queryFn: async () => {
-      const r = await api.get("/flamehub/feed");
-      return Array.isArray(r.data?.data) ? r.data.data : [];
-    },
+  const nutritionQuery = useQuery({
+    queryKey: ["member", "nutrition", "weekly"],
+    queryFn: async () => (await api.get("/member/nutrition/weekly")).data,
+    staleTime: 20_000,
+    enabled: !isTrainer,
   });
 
-  const gymsQuery = useQuery({
-    queryKey: ["gyms"],
-    queryFn: async () => {
-      const r = await api.get("/gyms");
-      return Array.isArray(r.data?.gyms) ? r.data.gyms : [];
-    },
-    enabled: !(user?.roles ?? []).includes("trainer"),
-  });
-
-  const featured = (productsQuery.data ?? []).filter((p: any) => p.is_featured);
-  const recentOrders = (ordersQuery.data ?? []).slice(0, 3);
-  const flamePosts = (flamehubFeedQuery.data ?? []).slice(0, 5);
-  const isTrainer = (user?.roles ?? []).includes("trainer");
-  const points = isTrainer
-    ? (user?.trainer_profile?.total_points ?? 0)
-    : (user?.member_profile?.total_points ?? 0);
-  const banners =
-    (promoBannersQuery.data?.length
-      ? promoBannersQuery.data
-      : fallbackBanners) ?? [];
-
-  const onBannerViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    const i = viewableItems?.[0]?.index;
-    if (typeof i === "number") {
-      bannerIndexRef.current = i;
-      setBannerIndex(i);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        meQuery.refetch(),
+        pointsQuery.refetch(),
+        promoQuery.refetch(),
+        productsQuery.refetch(),
+        ordersQuery.refetch(),
+        nutritionQuery.refetch(),
+      ]);
+    } finally {
+      setRefreshing(false);
     }
-  });
-
-  useEffect(() => {
-    if ((banners?.length ?? 0) <= 1) return;
-    const id = setInterval(() => {
-      const current = bannerIndexRef.current ?? 0;
-      const next = (current + 1) % banners.length;
-      bannerIndexRef.current = next;
-      setBannerIndex(next);
-      bannerListRef.current?.scrollToIndex?.({ index: next, animated: true });
-    }, 4000);
-    return () => clearInterval(id);
-  }, [banners.length, width]);
+  }, [
+    meQuery,
+    pointsQuery,
+    promoQuery,
+    productsQuery,
+    ordersQuery,
+    nutritionQuery,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    (async () => {
       try {
-        const v = await SecureStore.getItemAsync(LAST_ADDRESS_KEY);
-        if (!cancelled && v) setLastAddress(v);
+        const addr = await SecureStore.getItemAsync(LAST_ADDRESS_KEY);
+        if (!cancelled && addr) setDefaultAddress(addr);
       } catch {}
-    }
-    load();
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const defaultAddressText = useMemo(() => {
-    if (lastAddress) return lastAddress;
-    const defGymId = user?.member_profile?.default_gym_id;
-    if (!defGymId) return "";
-    const g = (gymsQuery.data ?? []).find(
-      (x: any) => Number(x.id) === Number(defGymId),
-    );
-    if (!g) return "";
-    return [g.gym_name, g.address].filter(Boolean).join(", ");
-  }, [lastAddress, gymsQuery.data, user?.member_profile?.default_gym_id]);
+  const banners: Banner[] = useMemo(() => {
+    const raw = promoQuery.data ?? [];
+    const mapped = raw
+      .filter((b: any) => b && (b.title || b.subtitle || b.image))
+      .map((b: any) => ({
+        id: String(b.id ?? b.title ?? Math.random()),
+        title: String(b.title ?? "Promo"),
+        subtitle: String(b.subtitle ?? ""),
+        image:
+          typeof b.image === "string" ? { uri: toPublicUrl(b.image) } : undefined,
+      }));
+    if (mapped.length) return mapped;
+    return [
+      { id: "b1", title: "Flamestreet", subtitle: "Protein · Fresh daily" },
+      { id: "b2", title: "Delivery", subtitle: "Fast & safe" },
+      { id: "b3", title: "Points", subtitle: "Collect rewards" },
+    ];
+  }, [promoQuery.data]);
+
+  const featured = useMemo(() => {
+    const list = productsQuery.data ?? [];
+    return list.slice(0, 10);
+  }, [productsQuery.data]);
+
+  const recentOrders = useMemo(
+    () => (ordersQuery.data ?? []).slice(0, 3),
+    [ordersQuery.data],
+  );
+
+  const [bannerIndex, setBannerIndex] = useState(0);
+  const bannerRef = useRef<ScrollView | null>(null);
+
+  const scrollToBanner = (idx: number) => {
+    bannerRef.current?.scrollTo({ x: idx * bannerW, animated: true });
+    setBannerIndex(idx);
+  };
 
   return (
-    <Screen allowUnderHeader>
+    <Screen>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
           <RefreshControl
-            tintColor={theme.colors.green}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            tintColor={theme.colors.green}
           />
         }
+        contentContainerStyle={{ paddingBottom: 120 }}
       >
-        {/* -- HERO SECTION (COMPACT) -- */}
-        <View style={{ height: 300, width: "100%" }}>
-          <AppFlatList
-            ref={bannerListRef}
-            data={banners}
-            keyExtractor={(i: any) => String(i.id)}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onViewableItemsChanged={onBannerViewableItemsChanged.current}
-            viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-            renderItem={({ item }: any) => {
-              const remote =
-                typeof item?.image === "string"
-                  ? toPublicUrl(item.image)
-                  : null;
-              const source = remote ? { uri: remote } : item?.image;
-              return (
-                <View style={{ width, height: 300 }}>
-                  <Image
-                    source={source}
-                    style={{ width: "100%", height: "100%" }}
-                    resizeMode="cover"
-                  />
-                  <LinearGradient
-                    colors={[
-                      "transparent",
-                      "rgba(0,0,0,0.4)",
-                      "rgba(0,0,0,0.9)",
-                    ]}
-                    style={{
-                      position: "absolute",
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 160,
-                    }}
-                  />
+        <View style={{ paddingHorizontal: 12, paddingTop: 14 }}>
+          <View style={{ height: bannerH }}>
+            <ScrollView
+              ref={(r) => {
+                bannerRef.current = r;
+              }}
+              horizontal
+              pagingEnabled
+              snapToInterval={bannerW}
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const idx = Math.round(e.nativeEvent.contentOffset.x / bannerW);
+                setBannerIndex(idx);
+              }}
+            >
+              {banners.map((b) => (
+                <View
+                  key={b.id}
+                  style={{
+                    width: bannerW,
+                    height: bannerH,
+                    borderRadius: 24,
+                    overflow: "hidden",
+                    borderWidth: 1,
+                    borderColor: "rgba(255,255,255,0.06)",
+                    backgroundColor: "#0b0d0c",
+                    marginRight: 0,
+                  }}
+                >
+                  {b.image ? (
+                    <Image
+                      source={b.image}
+                      style={{ width: "100%", height: "100%" }}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={["#0c2316", "#050807", "#000"]}
+                      style={{ width: "100%", height: "100%" }}
+                    />
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+
+            <View
+              style={{
+                position: "absolute",
+                bottom: 10,
+                left: 0,
+                right: 0,
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 6,
+              }}
+            >
+              {banners.map((_, idx) => (
+                <Pressable key={idx} onPress={() => scrollToBanner(idx)}>
                   <View
                     style={{
-                      position: "absolute",
-                      bottom: 70,
-                      left: 24,
-                      right: 24,
+                      height: 4,
+                      width: idx === bannerIndex ? 22 : 6,
+                      borderRadius: 99,
+                      backgroundColor:
+                        idx === bannerIndex
+                          ? theme.colors.green
+                          : "rgba(255,255,255,0.2)",
+                    }}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={{ height: 12 }} />
+
+          <View
+            style={{
+              borderRadius: 24,
+              overflow: "hidden",
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.06)",
+            }}
+          >
+            <LinearGradient
+              colors={["#065f46", "#022c22", "#000"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ padding: 16 }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 12,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      overflow: "hidden",
+                      borderWidth: 2,
+                      borderColor: theme.colors.green,
+                      backgroundColor: "#1f2937",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
                     <Text
                       style={{
                         color: theme.colors.green,
                         fontWeight: "900",
-                        fontSize: 10,
-                        textTransform: "uppercase",
-                        marginBottom: 4,
+                        fontSize: 18,
                       }}
                     >
-                      Promo
+                      {(user?.full_name?.charAt(0) ?? "U").toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ color: "#fff", fontSize: 12 }}>
+                      Hi {isTrainer ? "Coach!" : "Flamer!"}
                     </Text>
                     <Text
+                      numberOfLines={1}
                       style={{
                         color: "#fff",
-                        fontSize: 24,
                         fontWeight: "900",
-                        lineHeight: 28,
-                        width: "60%",
+                        fontSize: 16,
+                        textTransform: "uppercase",
                       }}
                     >
-                      {item.title}
-                    </Text>
-                    <Text
-                      style={{
-                        color: "rgba(255,255,255,0.7)",
-                        fontSize: 10,
-                        marginTop: 2,
-                        width: "50%",
-                      }}
-                    >
-                      {item.subtitle}
+                      {(
+                        user?.full_name?.split(" ")?.[0] ??
+                        (isTrainer ? "Trainer" : "Member")
+                      ).toString()}
                     </Text>
                   </View>
                 </View>
-              );
-            }}
-          />
-          <View
-            style={{
-              position: "absolute",
-              bottom: 55,
-              left: 24,
-              flexDirection: "row",
-              gap: 5,
-            }}
-          >
-            {banners.map((_: any, idx: number) => (
-              <View
-                key={idx}
-                style={{
-                  width: idx === bannerIndex ? 16 : 5,
-                  height: 5,
-                  borderRadius: 3,
-                  backgroundColor:
-                    idx === bannerIndex
-                      ? theme.colors.green
-                      : "rgba(255,255,255,0.3)",
-                }}
-              />
-            ))}
-          </View>
-        </View>
 
-        {/* -- PROFILE CARD (RE-ADJUSTED) -- */}
-        <View style={{ marginTop: -35, paddingHorizontal: 20 }}>
-          <View
-            style={{
-              backgroundColor: "#181818",
-              borderRadius: 24,
-              padding: 18,
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.08)",
-              shadowColor: "#000",
-              shadowOpacity: 0.2,
-              shadowRadius: 10,
-              elevation: 5,
-            }}
-          >
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text
+                      style={{
+                        color: "rgba(255,255,255,0.6)",
+                        fontSize: 10,
+                        letterSpacing: 2,
+                      }}
+                    >
+                      Flame Points
+                    </Text>
+                    <Text
+                      style={{ color: "#fff", fontSize: 16, fontWeight: "800" }}
+                    >
+                      {Number(pointsQuery.data?.balance ?? 0).toLocaleString(
+                        "id-ID",
+                      )}
+                    </Text>
+                  </View>
+                  <Ionicons name="flame" size={18} color={theme.colors.green} />
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {defaultAddress ? (
             <View
               style={{
+                marginTop: 10,
                 flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "space-between",
+                gap: 6,
+                paddingHorizontal: 6,
               }}
             >
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-              >
-                <Image
-                  source={
-                    toPublicUrl(user?.avatar)
-                      ? { uri: toPublicUrl(user?.avatar) as string }
-                      : require("../../assets/icon.png")
-                  }
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    backgroundColor: "#222",
-                  }}
-                />
-                <View>
-                  <Text
-                    style={{ color: "#fff", fontSize: 16, fontWeight: "800" }}
-                  >
-                    {user?.full_name?.split(" ")[0] ?? "Member"}
-                  </Text>
-                  <Text
-                    style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}
-                  >
-                    Verified Member
-                  </Text>
-                </View>
-              </View>
-              <Pressable
-                onPress={() => goRoot("PointsHistory")}
-                style={{ alignItems: "flex-end" }}
-              >
-                <Text
-                  style={{ color: "#fff", fontWeight: "900", fontSize: 18 }}
-                >
-                  {Number(points).toLocaleString("id-ID")}
-                </Text>
-                <Text
-                  style={{
-                    color: theme.colors.green,
-                    fontSize: 9,
-                    fontWeight: "800",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Flame Points
-                </Text>
-              </Pressable>
-            </View>
-            {defaultAddressText && (
-              <View
-                style={{
-                  marginTop: 14,
-                  paddingTop: 14,
-                  borderTopWidth: 1,
-                  borderTopColor: "rgba(255,255,255,0.05)",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <Ionicons
-                  name="location"
-                  size={14}
-                  color={theme.colors.green}
-                />
-                <Text
-                  style={{
-                    color: "rgba(255,255,255,0.5)",
-                    fontSize: 11,
-                    flex: 1,
-                  }}
-                  numberOfLines={1}
-                >
-                  {defaultAddressText}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* -- QUICK ACTIONS (BENTO) -- */}
-        <View style={{ padding: 20, gap: 12 }}>
-          <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900" }}>
-            Discovery
-          </Text>
-          <View style={{ flexDirection: "row", gap: 12, height: 140 }}>
-            <Pressable
-              onPress={() => navigation.navigate("Products")}
-              style={{
-                flex: 1.2,
-                backgroundColor: "#151515",
-                borderRadius: 20,
-                padding: 16,
-                justifyContent: "space-between",
-                borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.03)",
-              }}
-            >
-              <View
-                style={{
-                  backgroundColor: "rgba(34, 197, 94, 0.1)",
-                  width: 40,
-                  height: 40,
-                  borderRadius: 12,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons
-                  name="fast-food"
-                  size={20}
-                  color={theme.colors.green}
-                />
-              </View>
-              <Text style={{ color: "#fff", fontSize: 16, fontWeight: "800" }}>
-                Flame Meals
-              </Text>
-            </Pressable>
-            <View style={{ flex: 1, gap: 12 }}>
-              <Pressable
-                onPress={() =>
-                  navigation.navigate(isTrainer ? "TrainerMembers" : "Cart")
-                }
-                style={{
-                  flex: 1,
-                  backgroundColor: "#151515",
-                  borderRadius: 20,
-                  paddingHorizontal: 16,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                  borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.03)",
-                }}
-              >
-                <Ionicons
-                  name={isTrainer ? "people" : "cart"}
-                  size={18}
-                  color={isTrainer ? "#60a5fa" : "#a78bfa"}
-                />
-                <Text
-                  style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}
-                >
-                  {isTrainer ? "Clients" : "Cart"}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() =>
-                  navigation.navigate(isTrainer ? "TrainerWithdraw" : "Orders")
-                }
-                style={{
-                  flex: 1,
-                  backgroundColor: "#151515",
-                  borderRadius: 20,
-                  paddingHorizontal: 16,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                  borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.03)",
-                }}
-              >
-                <Ionicons
-                  name={isTrainer ? "cash" : "receipt"}
-                  size={18}
-                  color={isTrainer ? "#fbbf24" : "#fb7185"}
-                />
-                <Text
-                  style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}
-                >
-                  {isTrainer ? "Payout" : "Orders"}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-
-        {/* -- POPULAR MENU -- */}
-        <View style={{ paddingVertical: 10 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              paddingHorizontal: 20,
-              marginBottom: 12,
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900" }}>
-              Weekly Popular
-            </Text>
-            <Pressable onPress={() => navigation.navigate("Products")}>
+              <Ionicons name="location" size={12} color={theme.colors.green} />
               <Text
+                numberOfLines={1}
                 style={{
-                  color: theme.colors.green,
+                  color: "rgba(255,255,255,0.55)",
+                  fontSize: 11,
                   fontWeight: "800",
-                  fontSize: 12,
                 }}
               >
-                See all
+                {defaultAddress}
               </Text>
+            </View>
+          ) : null}
+
+          <View style={{ height: 14 }} />
+
+          <View style={{ flexDirection: "row", gap: 12 }}>
+            <Pressable
+              onPress={() => nav.navigate("Products")}
+              style={{
+                flex: 1,
+                borderRadius: 24,
+                overflow: "hidden",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.08)",
+                backgroundColor: "#141416",
+              }}
+            >
+              <View style={{ height: 120, backgroundColor: "#0b0d0c" }}>
+                <LinearGradient
+                  colors={["transparent", "rgba(0,0,0,0.85)"]}
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 80,
+                  }}
+                />
+              </View>
+              <View style={{ paddingHorizontal: 16, paddingVertical: 14 }}>
+                <Text
+                  style={{ color: "#fff", fontWeight: "900", fontSize: 14 }}
+                >
+                  Order Flame Meal
+                </Text>
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.3)",
+                    fontSize: 11,
+                    fontWeight: "700",
+                    marginTop: 3,
+                  }}
+                >
+                  High protein · Fresh daily
+                </Text>
+              </View>
             </Pressable>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingLeft: 20, gap: 14 }}
-          >
-            {featured.map((p: any) => (
-              <Pressable
-                key={p.id}
-                onPress={() =>
-                  navigation.navigate("ProductDetail", { slug: p.slug })
-                }
+
+            <Pressable
+              onPress={() => nav.navigate(isTrainer ? "PointsHistory" : "Nutrition")}
+              style={{
+                flex: 1,
+                borderRadius: 24,
+                overflow: "hidden",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.06)",
+                backgroundColor: "#141416",
+                padding: 14,
+              }}
+            >
+              <View
+                style={{
+                  position: "absolute",
+                  right: -60,
+                  top: -60,
+                  width: 160,
+                  height: 160,
+                  borderRadius: 80,
+                  backgroundColor: "rgba(9,221,97,0.12)",
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  left: -20,
+                  bottom: -40,
+                  width: 120,
+                  height: 120,
+                  borderRadius: 60,
+                  backgroundColor: "rgba(9,221,97,0.06)",
+                }}
+              />
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                }}
               >
-                <View style={{ width: 140 }}>
-                  <Image
-                    source={
-                      toPublicUrl(p.image)
-                        ? { uri: toPublicUrl(p.image) }
-                        : require("../../assets/icon.png")
-                    }
-                    style={{
-                      width: 140,
-                      height: 160,
-                      borderRadius: 20,
-                      backgroundColor: "#151515",
-                    }}
-                  />
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Text
+                    style={{
+                      color: "rgba(255,255,255,0.3)",
+                      fontSize: 10,
+                      fontWeight: "900",
+                      letterSpacing: 2,
+                    }}
+                  >
+                    This Month
+                  </Text>
+                  <Text
+                    numberOfLines={1}
                     style={{
                       color: "#fff",
-                      fontWeight: "700",
-                      fontSize: 13,
-                      marginTop: 8,
+                      fontWeight: "900",
+                      fontSize: 15,
+                      marginTop: 3,
                     }}
-                    numberOfLines={1}
                   >
-                    {p.name}
+                    {isTrainer ? "Coach Stats" : "Nutrition"}
                   </Text>
                   <Text
                     style={{
-                      color: theme.colors.green,
-                      fontWeight: "800",
-                      fontSize: 12,
+                      color: "rgba(255,255,255,0.35)",
+                      fontSize: 11,
+                      fontWeight: "700",
+                      marginTop: 3,
                     }}
                   >
-                    Rp {Number(p.price).toLocaleString("id-ID")}
+                    {isTrainer
+                      ? "Track earnings"
+                      : nutritionQuery.isLoading
+                        ? "Loading…"
+                        : nutritionQuery.isError
+                          ? "Not available"
+                          : `${Number(nutritionQuery.data?.totals?.kcal ?? 0).toLocaleString("id-ID")} kcal this week`}
                   </Text>
+                  {!isTrainer &&
+                  !nutritionQuery.isLoading &&
+                  !nutritionQuery.isError ? (
+                    <View style={{ gap: 2, marginTop: 6 }}>
+                      <Text
+                        style={{
+                          color: "rgba(255,255,255,0.28)",
+                          fontSize: 10,
+                          fontWeight: "800",
+                        }}
+                      >
+                        Protein:{" "}
+                        {Number(
+                          nutritionQuery.data?.totals?.protein_g ?? 0,
+                        ).toLocaleString("id-ID")}
+                        g
+                      </Text>
+                      <Text
+                        style={{
+                          color: "rgba(255,255,255,0.28)",
+                          fontSize: 10,
+                          fontWeight: "800",
+                        }}
+                      >
+                        Energy:{" "}
+                        {Number(
+                          nutritionQuery.data?.totals?.kcal ?? 0,
+                        ).toLocaleString("id-ID")}
+                        kcal
+                      </Text>
+                      <Text
+                        style={{
+                          color: "rgba(255,255,255,0.28)",
+                          fontSize: 10,
+                          fontWeight: "800",
+                        }}
+                      >
+                        Carbs:{" "}
+                        {Number(
+                          nutritionQuery.data?.totals?.carbs_g ?? 0,
+                        ).toLocaleString("id-ID")}
+                        g
+                      </Text>
+                      <Text
+                        style={{
+                          color: "rgba(255,255,255,0.28)",
+                          fontSize: 10,
+                          fontWeight: "800",
+                        }}
+                      >
+                        Fat:{" "}
+                        {Number(
+                          nutritionQuery.data?.totals?.fat_g ?? 0,
+                        ).toLocaleString("id-ID")}
+                        g
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
+                <Ionicons
+                  name={isTrainer ? "stats-chart" : "fitness"}
+                  size={18}
+                  color={theme.colors.green}
+                />
+              </View>
+            </Pressable>
+          </View>
 
-        {/* -- FLAME FEED (FIXED ALIGNMENT) -- */}
-        <View style={{ paddingVertical: 20, gap: 12 }}>
+          <View style={{ height: 22 }} />
+
           <View
             style={{
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
-              paddingHorizontal: 20,
             }}
           >
-            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900" }}>
-              Flame Feed
-            </Text>
-            <Pressable
-              onPress={() =>
-                navigation.navigate("Flamehub", { screen: "Hub" } as any)
-              }
+            <Text
+              style={{
+                color: "rgba(255,255,255,0.45)",
+                fontSize: 11,
+                fontWeight: "900",
+                letterSpacing: 2,
+              }}
             >
+              Top Flame Meals
+            </Text>
+            <Pressable onPress={() => nav.navigate("Products")}>
               <Text
                 style={{
                   color: theme.colors.green,
-                  fontWeight: "800",
-                  fontSize: 12,
+                  fontSize: 10,
+                  fontWeight: "900",
+                  letterSpacing: 1,
                 }}
               >
-                Explore
+                See All
               </Text>
             </Pressable>
           </View>
+
+          <View style={{ height: 10 }} />
+
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+            contentContainerStyle={{ gap: 12, paddingBottom: 8 }}
           >
-            {flamePosts.map((p: any) => {
-              const coverSrc = p.media?.[0]?.path
-                ? toPublicUrl(p.media[0].path)
-                : null;
+            {featured.map((p) => {
+              const url = p.image ? toPublicUrl(p.image) : null;
+              const img = url ? ({ uri: url } as const) : null;
               return (
                 <Pressable
                   key={p.id}
                   onPress={() =>
-                    navigation.navigate("FlamehubPost", { id: p.id })
+                    nav.navigate("ProductDetail", { slug: p.slug })
                   }
                 >
-                  <View
-                    style={{
-                      width: 180,
-                      height: 260,
-                      borderRadius: 24,
-                      overflow: "hidden",
-                      backgroundColor: "#111",
-                      borderWidth: 1,
-                      borderColor: "rgba(255,255,255,0.06)",
-                    }}
-                  >
-                    <Image
-                      source={
-                        coverSrc
-                          ? { uri: coverSrc }
-                          : require("../../assets/icon.png")
-                      }
-                      style={{ width: "100%", height: "100%" }}
-                    />
-                    <LinearGradient
-                      colors={["transparent", "rgba(0,0,0,0.8)"]}
-                      style={{
-                        position: "absolute",
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: 120,
-                      }}
-                    />
+                  <View style={{ width: 150 }}>
                     <View
                       style={{
-                        position: "absolute",
-                        bottom: 12,
-                        left: 12,
-                        right: 12,
-                        gap: 4,
+                        width: 150,
+                        height: 190,
+                        borderRadius: 24,
+                        overflow: "hidden",
+                        borderWidth: 1,
+                        borderColor: "rgba(255,255,255,0.06)",
+                        backgroundColor: "#111",
                       }}
                     >
-                      <Text
-                        style={{
-                          color: "#fff",
-                          fontSize: 12,
-                          fontWeight: "800",
-                        }}
-                        numberOfLines={2}
-                      >
-                        {p.caption || "View Post"}
-                      </Text>
-                      <Text
-                        style={{ color: "rgba(255,255,255,0.5)", fontSize: 10 }}
-                      >
-                        @{p.user?.username}
-                      </Text>
+                      {img ? (
+                        <Image
+                          source={img}
+                          style={{ width: "100%", height: "100%" }}
+                        />
+                      ) : null}
                     </View>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        marginTop: 8,
+                        color: "#fff",
+                        fontWeight: "900",
+                        fontSize: 12,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {p.name}
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.colors.green,
+                        fontSize: 11,
+                        fontWeight: "900",
+                        marginTop: 2,
+                      }}
+                    >
+                      {fmtMoney(p.price)}
+                    </Text>
                   </View>
                 </Pressable>
               );
             })}
           </ScrollView>
-        </View>
 
-        {/* -- RECENT ORDERS (MUTED ACCENT) -- */}
-        <View style={{ padding: 20, gap: 12 }}>
-          <Text style={{ color: "#fff", fontSize: 18, fontWeight: "900" }}>
+          <View style={{ height: 22 }} />
+
+          <Text
+            style={{
+              color: "rgba(255,255,255,0.3)",
+              fontSize: 10,
+              fontWeight: "900",
+              letterSpacing: 2,
+            }}
+          >
             Recent Orders
           </Text>
-          {recentOrders.map((o: any) => {
-            const isDelivered =
-              o.status === "completed" || o.status === "delivered";
-            const items = Array.isArray(o.items) ? o.items : [];
-            const itemsText = items
-              .slice(0, 2)
-              .map(
-                (it: any) =>
-                  `${Number(it.quantity ?? 1) || 1}x ${it.product_name}`,
-              )
-              .join(" • ");
-            const more = Math.max(0, items.length - 2);
-            const itemsSummary = itemsText
-              ? `${itemsText}${more ? ` • +${more}` : ""}`
-              : "Items tidak tersedia";
-            const dateStr = o.created_at
-              ? new Date(o.created_at).toLocaleDateString("id-ID", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "";
-            return (
-              <Pressable
-                key={o.id}
-                onPress={() =>
-                  navigation.navigate("OrderDetail", {
-                    orderNumber: o.order_number,
-                    orderId: o.id,
-                  })
-                }
-              >
-                <View
-                  style={{
-                    padding: 16,
-                    borderRadius: 20,
-                    backgroundColor: isDelivered
-                      ? "rgba(34, 197, 94, 0.05)"
-                      : "#151515",
-                    borderWidth: 1,
-                    borderColor: isDelivered
-                      ? "rgba(34, 197, 94, 0.15)"
-                      : "rgba(255,255,255,0.03)",
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
+          <View style={{ height: 10 }} />
+          <View style={{ gap: 10 }}>
+            {recentOrders.map((o) => {
+              const st = String(o.status ?? "").toLowerCase();
+              const isDone = st === "completed" || st === "delivered";
+              const title =
+                (o.items ?? [])
+                  .slice(0, 1)
+                  .map((it) => it.product_name)
+                  .join("") || "Order";
+              return (
+                <Pressable
+                  key={o.id}
+                  onPress={() =>
+                    nav.navigate("OrderDetail", {
+                      orderNumber: o.order_number,
+                      orderId: o.id,
+                    })
+                  }
                 >
-                  <View>
-                    <Text
-                      style={{ color: "#fff", fontWeight: "800", fontSize: 14 }}
-                      numberOfLines={1}
-                    >
-                      {itemsSummary}
-                    </Text>
-                    <Text
-                      style={{
-                        color: "rgba(255,255,255,0.4)",
-                        fontSize: 11,
-                        marginTop: 2,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {dateStr ? `${dateStr} • ` : ""}
-                      {String(o.status ?? "").toUpperCase()} •{" "}
-                      {o.payment_status}
-                    </Text>
-                  </View>
-                  <Text
+                  <View
                     style={{
-                      color: isDelivered ? theme.colors.green : "#fff",
-                      fontWeight: "900",
-                      fontSize: 14,
+                      borderRadius: 20,
+                      borderWidth: 1,
+                      borderColor: isDone
+                        ? "rgba(16,185,129,0.15)"
+                        : "rgba(255,255,255,0.07)",
+                      backgroundColor: isDone
+                        ? "rgba(6,78,59,0.28)"
+                        : "rgba(28,28,32,0.95)",
+                      padding: 14,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 12,
                     }}
                   >
-                    Rp {Number(o.total_amount).toLocaleString("id-ID")}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
+                    <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          color: "#fff",
+                          fontWeight: "900",
+                          fontSize: 13,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {title}
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: 3,
+                            backgroundColor: isDone
+                              ? theme.colors.green
+                              : "#f97316",
+                          }}
+                        />
+                        <Text
+                          style={{
+                            color: isDone ? theme.colors.green : "#f97316",
+                            fontSize: 10,
+                            fontWeight: "900",
+                            letterSpacing: 1,
+                          }}
+                        >
+                          {o.status}
+                        </Text>
+                        <Text
+                          style={{
+                            color: "rgba(255,255,255,0.2)",
+                            fontSize: 10,
+                          }}
+                        >
+                          ·
+                        </Text>
+                        <Text
+                          style={{
+                            color: "rgba(255,255,255,0.35)",
+                            fontSize: 10,
+                            fontWeight: "900",
+                          }}
+                        >
+                          #{o.order_number}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ alignItems: "flex-end", gap: 6 }}>
+                      <Text
+                        style={{ color: "#fff", fontWeight: "900", fontSize: 13 }}
+                      >
+                        {fmtMoney(o.total_amount)}
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={14}
+                        color="rgba(255,255,255,0.25)"
+                      />
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       </ScrollView>
+
       <ChatFab />
     </Screen>
   );

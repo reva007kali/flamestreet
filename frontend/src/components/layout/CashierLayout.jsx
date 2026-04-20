@@ -19,6 +19,7 @@ const NAV_GROUPS = [
     title: "Kasir",
     items: [
       { to: "/cashier/dashboard", label: "Dashboard", Icon: LayoutDashboard },
+      { to: "/cashier/menu", label: "POS Menu", Icon: Menu },
       {
         to: "/cashier/queue",
         label: "Antrian Orderan",

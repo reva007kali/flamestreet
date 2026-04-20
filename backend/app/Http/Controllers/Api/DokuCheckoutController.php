@@ -38,6 +38,9 @@ class DokuCheckoutController extends Controller
     {
         $order = Order::query()->findOrFail($orderId);
         $this->authorizeOrder($request, $order);
+        if ($order->payment_method === 'cod') {
+            return response()->json(['message' => 'COD does not require payment link'], 422);
+        }
 
         try {
             $tx = $this->service->ensurePaymentSession($order);
@@ -73,7 +76,7 @@ class DokuCheckoutController extends Controller
     protected function authorizeOrder(Request $request, Order $order): void
     {
         $user = $request->user();
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasRole('cashier')) {
             return;
         }
 
@@ -90,4 +93,3 @@ class DokuCheckoutController extends Controller
         }
     }
 }
-
