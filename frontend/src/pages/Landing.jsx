@@ -11,6 +11,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
+import { LayoutDashboard, LogIn } from "lucide-react";
 
 function pickNutrition(n) {
   const o = n ?? {};
@@ -387,6 +388,18 @@ export default function Landing() {
                 {COPY.buttons.orderNow}
               </Link>
             )}
+
+            <Link
+              to={token && user ? appHome : "/login"}
+              aria-label={token && user ? "Dashboard" : "Login"}
+              className="md:hidden grid h-11 w-11 place-items-center rounded-xl border border-white/15 bg-white/5 text-white transition hover:bg-white/10"
+            >
+              {token && user ? (
+                <LayoutDashboard size={18} />
+              ) : (
+                <LogIn size={18} />
+              )}
+            </Link>
 
             <button
               type="button"

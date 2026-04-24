@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/axios";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useEcho } from "@/components/common/RealtimeProvider";
-import SidePanel from "@/components/common/SidePanel";
-import OrderQuickDetail from "@/components/order/OrderQuickDetail";
 import {
   Clock,
   CheckCircle2,
@@ -87,7 +86,7 @@ function titleCase(s) {
 export default function Orders() {
   const echo = useEcho();
   const qc = useQueryClient();
-  const [selected, setSelected] = useState(null);
+  const navigate = useNavigate();
 
   const query = useQuery({
     queryKey: ["staff", "orders", { all: true }],
@@ -171,7 +170,7 @@ export default function Orders() {
                 {/* Info Utama - Tap to open detail */}
                 <div
                   className="flex justify-between items-start"
-                  onClick={() => setSelected(o)}
+                  onClick={() => navigate(`/cashier/orders/${o.order_number}`)}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -267,35 +266,6 @@ export default function Orders() {
           </span>
         </div>
       )}
-
-      {/* SIDE PANEL - KEEP LOGIC */}
-      <SidePanel
-        open={Boolean(selected)}
-        title={
-          <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">
-              Order Detail
-            </span>
-            <span className="text-lg font-black italic uppercase">
-              #{selected?.order_number}
-            </span>
-          </div>
-        }
-        onClose={() => setSelected(null)}
-      >
-        {selected && (
-          <div className="mt-4">
-            <OrderQuickDetail
-              mode="staff"
-              orderId={selected.id}
-              onUpdated={() => {
-                query.refetch();
-                qc.invalidateQueries({ queryKey: ["staff", "orders"] });
-              }}
-            />
-          </div>
-        )}
-      </SidePanel>
 
       <style
         dangerouslySetInnerHTML={{

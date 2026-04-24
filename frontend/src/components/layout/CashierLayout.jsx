@@ -1,7 +1,6 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/authStore";
 import { useQueueStore } from "@/store/queueStore";
-import { useState } from "react";
 import { api } from "@/lib/axios";
 import { getOrCreateDeviceId } from "@/lib/deviceId";
 import {
@@ -11,7 +10,6 @@ import {
   LogOut,
   Menu,
   ReceiptText,
-  X,
 } from "lucide-react";
 
 const NAV_GROUPS = [
@@ -35,7 +33,6 @@ export default function CashierLayout() {
   const logout = useAuthStore((s) => s.logout);
   const counts = useQueueStore((s) => s.counts);
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const handleLogout = async () => {
     try {
       await api.delete("/device-tokens", {
@@ -47,28 +44,14 @@ export default function CashierLayout() {
 
   return (
     <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm md:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
       <aside
         className={[
-          "fixed inset-y-0 left-0 z-30 flex flex-col bg-zinc-900 border-r border-zinc-800/70",
-          "transition-all duration-200 ease-in-out",
-          mobileOpen ? "translate-x-0" : "-translate-x-full",
-          "md:sticky md:top-0 md:h-screen md:translate-x-0",
-          "md:w-[220px] w-[220px]",
+          "hidden md:sticky md:top-0 md:flex md:h-screen md:w-[220px]",
+          "z-30 flex-col bg-zinc-900 border-r border-zinc-800/70",
         ].join(" ")}
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800/70 px-4">
-          <Link
-            to="/cashier"
-            className="flex items-center gap-2.5"
-            onClick={() => setMobileOpen(false)}
-          >
+          <Link to="/cashier" className="flex items-center gap-2.5">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]">
               <Flame className="h-4 w-4 text-white" />
             </span>
@@ -76,13 +59,6 @@ export default function CashierLayout() {
               Flamestreet
             </span>
           </Link>
-
-          <button
-            onClick={() => setMobileOpen(false)}
-            className="flex items-center justify-center rounded-md h-7 w-7 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300 md:hidden"
-          >
-            <X className="h-4 w-4" />
-          </button>
         </div>
 
         <nav className="sidebar-scroll flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden p-2 py-3">
@@ -105,7 +81,6 @@ export default function CashierLayout() {
                   <Link
                     key={to}
                     to={to}
-                    onClick={() => setMobileOpen(false)}
                     className={[
                       "group relative flex items-center gap-3 rounded-lg py-2 text-[13px] font-medium",
                       "transition-colors duration-150",
@@ -156,19 +131,43 @@ export default function CashierLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-zinc-800/70 bg-zinc-950/80 px-4 backdrop-blur-sm md:px-6">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="flex items-center justify-center rounded-md h-8 w-8 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-100 md:hidden"
-            type="button"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
           <Breadcrumb pathname={location.pathname} />
         </header>
 
-        <main className="flex-1 p-4 md:p-7">
+        <main className="flex-1 p-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:p-7 md:pb-7">
           <Outlet />
         </main>
+
+        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-800/70 bg-zinc-950/95 backdrop-blur md:hidden">
+          <div className="mx-auto flex max-w-md items-stretch justify-between px-2 py-2">
+            {NAV_GROUPS[0].items.map(({ to, label, Icon, badgeKey }) => {
+              const isActive =
+                location.pathname === to || location.pathname.startsWith(to + "/");
+              const badgeCount =
+                badgeKey && counts?.[badgeKey] != null ? Number(counts[badgeKey]) : 0;
+
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  className={[
+                    "relative flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-2 text-[10px] font-black uppercase tracking-wider",
+                    isActive ? "text-[var(--accent)]" : "text-zinc-500",
+                  ].join(" ")}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="leading-none">{label}</span>
+                  {badgeCount > 0 ? (
+                    <span className="absolute right-3 top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-black text-black">
+                      {badgeCount > 99 ? "99+" : badgeCount}
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            })}
+          </div>
+          <div style={{ height: "env(safe-area-inset-bottom)" }} />
+        </nav>
       </div>
     </div>
   );

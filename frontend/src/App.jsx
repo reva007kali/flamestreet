@@ -13,6 +13,8 @@ import RegisterTrainer from "@/pages/auth/RegisterTrainer";
 import OrderDetail from "@/pages/common/OrderDetail";
 import Articles from "@/pages/common/Articles";
 import ArticleDetail from "@/pages/common/ArticleDetail";
+import ArticlesList from "@/pages/common/ArticlesList";
+import ArticleDetailPage from "@/pages/common/ArticleDetailPage";
 import FpShop from "@/pages/common/FpShop";
 import FlamehubFeed from "@/pages/flamehub/Feed";
 import FlamehubCreatePost from "@/pages/flamehub/CreatePost";
@@ -281,6 +283,7 @@ export default function App() {
           <Route path="/cashier/dashboard" element={<CashierDashboard />} />
           <Route path="/cashier/queue" element={<CashierQueue />} />
           <Route path="/cashier/orders" element={<CashierOrders />} />
+          <Route path="/cashier/orders/:orderNumber" element={<OrderDetail />} />
           <Route path="/cashier/menu" element={<Menu basePath="/cashier" />} />
           <Route
             path="/cashier/product/:slug"
@@ -361,6 +364,9 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
+
+      <Route path="/articles" element={<ArticlesList />} />
+      <Route path="/articles/:slug" element={<ArticleDetailPage />} />
     </Routes>
   );
 }

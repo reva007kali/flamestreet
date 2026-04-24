@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Bell,
   Ticket,
+  Newspaper,
+  Image as ImageIcon,
 } from "lucide-react";
 
 export default function Home() {
@@ -90,6 +92,12 @@ export default function Home() {
         .banners,
   });
 
+  const articlesQuery = useQuery({
+    queryKey: ["articles", { limit: 5 }],
+    queryFn: async () =>
+      (await api.get("/articles", { params: { limit: 5 } })).data.data,
+  });
+
   const fallbackBanners = useMemo(
     () => [
       {
@@ -131,6 +139,8 @@ export default function Home() {
   const [bannerIndex, setBannerIndex] = useState(0);
   const bannerListRef = useRef(null);
   const isInteracting = useRef(false);
+  const [fhIndex, setFhIndex] = useState(0);
+  const fhListRef = useRef(null);
 
   const scrollToBanner = useCallback((index) => {
     const el = bannerListRef.current;
@@ -161,8 +171,12 @@ export default function Home() {
     [featuredQuery.data],
   );
   const flamePosts = useMemo(
-    () => (flamehubQuery.data ?? []).slice(0, 5),
+    () => (flamehubQuery.data ?? []).slice(0, 10),
     [flamehubQuery.data],
+  );
+  const articles = useMemo(
+    () => (articlesQuery.data ?? []).slice(0, 5),
+    [articlesQuery.data],
   );
   const recentOrders = useMemo(
     () => (ordersQuery.data?.data ?? []).slice(0, 3),
@@ -484,115 +498,165 @@ export default function Home() {
         </div>
       </section>
 
-      {/* WEEKLY POPULAR - CLEANER SLIDER */}
+      {/* FLAME HUB - SLIDER */}
       <section className="pt-8">
-        <div className="flex items-center justify-between  mb-4">
+        <div className="flex items-center justify-between mb-4">
           <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-            Top Flame Meals
+            Flame Hub
           </h3>
           <Link
-            to="/member/menu"
+            to="/member/flamehub"
             className="text-[10px] font-black text-emerald-600 uppercase"
           >
             See All
           </Link>
         </div>
-        <div className="flex gap-3 overflow-x-auto  pb-4 snap-x no-scrollbar">
-          {featured.map((p) => (
-            <Link
-              key={p.id}
-              to={`/member/product/${p.slug}`}
-              className="w-40 shrink-0 snap-start group"
+        {flamePosts.length > 0 ? (
+          <div className="relative">
+            <div
+              ref={fhListRef}
+              onScroll={() => {
+                const el = fhListRef.current;
+                if (!el) return;
+                const w = el.clientWidth;
+                const idx = Math.round(el.scrollLeft / w);
+                setFhIndex(idx);
+              }}
+              className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory no-scrollbar"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
-              <div className="aspect-4/5 overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 transition-transform group-active:scale-95">
-                {p.image ? (
-                  <img
-                    alt=""
-                    src={toAssetUrl(p.image)}
-                    className="h-full w-full object-cover"
+              {flamePosts.map((p) => (
+                <Link
+                  key={p.id}
+                  to={`/member/flamehub/p/${p.id}`}
+                  className="w-40 shrink-0 snap-start group"
+                >
+                  <div className="aspect-[4/5] overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 transition-transform group-active:scale-95">
+                    {p.media?.[0]?.type === "video" ? (
+                      <div className="relative aspect-[4/5] w-full overflow-hidden bg-black">
+                        <video
+                          src={toAssetUrl(p.media[0]?.path)}
+                          poster={toAssetUrl(p.media[0]?.poster_path)}
+                          className="h-full w-full object-cover"
+                          muted
+                          playsInline
+                          preload="metadata"
+                        />
+                      </div>
+                    ) : p.media?.[0]?.path ? (
+                      <img
+                        alt=""
+                        src={toAssetUrl(p.media[0]?.path)}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-zinc-800" />
+                    )}
+                  </div>
+                  <div className="mt-2">
+                    <div className="truncate text-xs font-black text-white leading-tight">
+                      {p.user?.username}
+                    </div>
+                    <div className="truncate text-[10px] text-zinc-500 mt-0.5">
+                      {p.like_count ?? 0} likes
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            {flamePosts.length > 1 && (
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                {flamePosts.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      const el = fhListRef.current;
+                      if (!el) return;
+                      el.scrollTo({
+                        left: idx * el.clientWidth,
+                        behavior: "smooth",
+                      });
+                    }}
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      idx === fhIndex
+                        ? "w-6 bg-[var(--accent)]"
+                        : "w-1.5 bg-white/20"
+                    }`}
                   />
-                ) : (
-                  <div className="h-full w-full bg-zinc-800" />
-                )}
+                ))}
               </div>
-              <div className="mt-2">
-                <div className="truncate text-xs font-black uppercase text-white leading-tight">
-                  {p.name}
-                </div>
-                <div className="text-[10px] font-bold text-emerald-600 mt-0.5">
-                  Rp {Number(p.price ?? 0).toLocaleString("id-ID")}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-zinc-900/30 py-12 gap-3">
+            <ImageIcon size={32} className="text-zinc-700" />
+            <p className="text-xs font-semibold text-zinc-600">
+              Belum ada konten Flame Hub
+            </p>
+          </div>
+        )}
       </section>
 
-      {/* RECENT ORDERS */}
+      {/* FLAME NEWS - ARTICLES */}
       <section className="pt-8">
-        <h3 className="mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
-          Recent Orders
-        </h3>
-        <div className="flex flex-col gap-3">
-          {recentOrders.map((o) => {
-            const isDelivered = ["completed", "delivered"].includes(
-              o?.status?.toLowerCase(),
-            );
-            return (
-              <Link key={o.id} to={`/orders/${o.order_number}`}>
-                <div
-                  className={`flex items-center justify-between rounded-[20px] border p-4 gap-3 transition-all active:scale-[0.98] ${
-                    isDelivered
-                      ? "border-emerald-500/15 bg-gradient-to-br from-emerald-900/50 to-[#0a1a12]/35"
-                      : "border-white/[0.07] bg-gradient-to-br from-[#1c1c20]/95 to-[#141418]/98"
-                  }`}
-                >
-                  {/* left */}
-                  <div className="min-w-0 flex flex-col gap-1">
-                    <div className="truncate text-[13px] font-black uppercase italic text-white">
-                      {o.items?.slice(0, 1).map((it) => it.product_name)}
-                      {o.items?.length > 1
-                        ? ` & ${o.items.length - 1} more`
-                        : ""}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className={`h-[5px] w-[5px] flex-shrink-0 rounded-full ${
-                          isDelivered
-                            ? "bg-emerald-500"
-                            : "bg-orange-500 animate-pulse"
-                        }`}
-                      />
-                      <span
-                        className={`text-[9px] font-black uppercase tracking-[0.06em] ${
-                          isDelivered ? "text-emerald-500" : "text-orange-500"
-                        }`}
-                      >
-                        {o.status}
-                      </span>
-                      <span className="text-[9px] text-white/10">·</span>
-                      <span className="text-[9px] font-black uppercase text-white/25">
-                        #{o.order_number}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* right */}
-                  <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
-                    <div className="text-[13px] font-black tracking-tight text-white">
-                      Rp {Number(o.total_amount).toLocaleString("id-ID")}
-                    </div>
-                    <ChevronRight size={14} className="text-white/20" />
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+            Flame News
+          </h3>
+          <Link
+            to="/articles"
+            className="text-[10px] font-black text-emerald-600 uppercase"
+          >
+            See All
+          </Link>
         </div>
+        {articles.length > 0 ? (
+          <div className="relative">
+            <div
+              className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory no-scrollbar"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              {articles.map((a) => (
+                <Link
+                  key={a.id}
+                  to={`/articles/${a.slug}`}
+                  className="w-40 shrink-0 snap-start group"
+                >
+                  <div className="aspect-[4/5] overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 transition-transform group-active:scale-95">
+                    {a.cover_image ? (
+                      <img
+                        alt=""
+                        src={toAssetUrl(a.cover_image)}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-zinc-800" />
+                    )}
+                  </div>
+                  <div className="mt-2">
+                    <div className="truncate text-[10px] font-bold text-white leading-tight">
+                      {a.title}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-zinc-900/30 py-12 gap-3">
+            <Newspaper size={32} className="text-zinc-700" />
+            <p className="text-xs font-semibold text-zinc-600">
+              Belum ada berita
+            </p>
+          </div>
+        )}
       </section>
 
       {/* HIDDEN LOADING STATE LOGIC KEPT */}
-      {meQuery.isLoading || promoQuery.isLoading ? (
+      {meQuery.isLoading ||
+      promoQuery.isLoading ||
+      flamehubQuery.isLoading ||
+      articlesQuery.isLoading ? (
         <div className="sr-only">Loading…</div>
       ) : null}
 

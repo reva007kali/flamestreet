@@ -147,7 +147,7 @@ export default function FlamehubCreatePost({ basePath }) {
   });
 
   return (
-    <div className="mx-auto max-w-xl pb-10">
+    <div className="mx-auto max-w-xl pb-10 px-3">
       {/* App Bar Style Header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-900 bg-zinc-950/80 py-4 backdrop-blur-md mb-6">
         <Link

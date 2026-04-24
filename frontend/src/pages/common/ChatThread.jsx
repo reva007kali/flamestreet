@@ -288,9 +288,9 @@ export default function ChatThread({ basePath, counterpartRole }) {
     <div className="min-h-screen px-2 py-2" style={{ background: "#050a06" }}>
       <div
         className="mx-auto flex max-w-lg flex-col gap-2.5"
-        style={{ paddingBottom: contentPadBottom }}
+        style={{ paddingBottom: contentPadBottom, paddingTop: `calc(${topOffset} + 0.5rem)` }}
       >
-        <div className="sticky z-30" style={{ top: topOffset }}>
+        <div className="fixed left-0 right-0 z-30 px-2" style={{ top: topOffset }}>
           <div
             className="flex items-center justify-between gap-2 rounded-[18px] border border-emerald-500/10 px-3 py-2.5 backdrop-blur"
             style={{

@@ -201,7 +201,7 @@ export default function Menu({ basePath = "/member" }) {
           >
             {/* Image Container */}
             <div
-              className="relative aspect-video cursor-pointer overflow-hidden bg-zinc-950"
+              className="relative aspect-square cursor-pointer overflow-hidden bg-zinc-950"
               onClick={() => navigate(`${basePath}/product/${p.slug}`)}
             >
               {p.image ? (

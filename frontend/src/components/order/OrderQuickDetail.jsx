@@ -94,14 +94,37 @@ export default function OrderQuickDetail({ mode, orderId, orderNumber, onUpdated
         <div className="font-medium">Items</div>
         <div className="mt-3 space-y-2">
           {(order.items ?? []).map((it) => (
-            <div key={it.id} className="flex items-start justify-between gap-3 rounded border border-zinc-800 bg-zinc-950 p-3 text-sm">
-              <div>
-                <div className="text-zinc-200">{it.product_name}</div>
-                <div className="mt-1 text-xs text-zinc-500">
-                  Rp {Number(it.product_price ?? 0).toLocaleString('id-ID')} × {it.quantity}
+            <div key={it.id} className="flex flex-col gap-1 rounded border border-zinc-800 bg-zinc-950 p-3 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-zinc-200">{it.product_name}</div>
+                  <div className="mt-1 text-xs text-zinc-500">
+                    Rp {Number(it.product_price ?? 0).toLocaleString('id-ID')} × {it.quantity}
+                  </div>
+                </div>
+                <div className="text-zinc-200 shrink-0">
+                  Rp {Number(it.subtotal ?? 0).toLocaleString('id-ID')}
                 </div>
               </div>
-              <div className="text-zinc-200">Rp {Number(it.subtotal ?? 0).toLocaleString('id-ID')}</div>
+              {(it.modifier_options || it.modifiers)?.length > 0 && (
+                <div className="pl-3 space-y-0.5">
+                  {(it.modifier_options || it.modifiers).map((mod, mi) => (
+                    <div key={mi} className="flex justify-between text-xs text-zinc-500">
+                      <span>+ {mod.option_name || mod.modifier_name || mod.name}</span>
+                      <span>
+                        {Number(mod.additional_price ?? mod.price ?? 0) > 0
+                          ? `+Rp ${Number(mod.additional_price ?? mod.price ?? 0).toLocaleString('id-ID')}`
+                          : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {it.notes && (
+                <div className="text-xs text-amber-500/70 italic pl-3">
+                  Note: {it.notes}
+                </div>
+              )}
             </div>
           ))}
         </div>
