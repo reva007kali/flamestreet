@@ -13,6 +13,7 @@ import {
   Flame,
   Users,
   TrendingUp,
+  Ticket,
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -376,6 +377,45 @@ export default function Dashboard() {
             )}
           </Link>
         </div>
+        <Link
+          to="/trainer/referrals"
+          className="mt-4 flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 px-5 py-4 transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-zinc-950/60">
+              <Users size={18} className="text-[var(--accent)]" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
+                Referrals
+              </div>
+              <div className="truncate text-[13px] font-black text-white">
+                My Members
+              </div>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-white/20" />
+        </Link>
+
+        <Link
+          to="/trainer/fp-shop"
+          className="mt-3 flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 px-5 py-4 transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-zinc-950/60">
+              <Ticket size={18} className="text-[var(--accent)]" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
+                Flame Points
+              </div>
+              <div className="truncate text-[13px] font-black text-white">
+                FP Shop
+              </div>
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-white/20" />
+        </Link>
       </section>
 
       <section className="pt-8">

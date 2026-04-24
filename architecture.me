@@ -1,0 +1,83 @@
+Architecture Summary — Flamestreet
+
+Frontend (Web)
+- Framework: React (Vite)
+- Language: JavaScript (ESM)
+- Routing: react-router-dom
+- Styling: Tailwind CSS
+- State Management: Zustand
+- Data Fetching: @tanstack/react-query + Axios
+- Realtime Client: laravel-echo + pusher-js (Pusher-compatible)
+- Rich Text: TipTap
+
+Backend (API)
+- Framework: Laravel 13 (PHP 8.3)
+- API Type: HTTP JSON API (REST-style / REST-ish)
+- Authentication: Laravel Sanctum Personal Access Token (Bearer token)
+- Authorization (RBAC): spatie/laravel-permission (roles/permissions)
+- Realtime Server: Laravel Reverb (Pusher-compatible)
+- Payments: DOKU (Checkout/QRIS/VA/CC) via internal services
+- Push Notifications: Firebase (FCM) + Expo Push
+
+Mobile
+- Platform: iOS & Android
+- Framework: React Native (Expo)
+- Language: TypeScript
+- State Management: Zustand
+- Data Fetching: @tanstack/react-query + Axios
+- Realtime Client: laravel-echo + pusher-js (Pusher-compatible)
+- Secure Storage: expo-secure-store (token)
+- Push Notifications: expo-notifications (Expo Push) + FCM support
+
+Database & Persistence
+- Database: MySQL
+- ORM / Query Builder: Eloquent ORM + Query Builder
+- Migrations: Laravel Migrations
+- Sessions: database (SESSION_DRIVER=database)
+- Queues: database (QUEUE_CONNECTION=database)
+- Cache: database (CACHE_STORE=database)
+- Redis: tersedia/terkonfigurasi, namun default app saat ini memakai database cache store (Redis bisa dipakai jika diubah ke CACHE_STORE=redis)
+
+Storage & Files
+- Laravel Filesystem Disk: local (FILESYSTEM_DISK=local)
+- Upload lokasi utama: backend/public/uploads/... (publicly served)
+- Storage internal: backend/storage/app (private/public)
+
+Infrastructure (Current Repo/Env)
+- Operating System: Linux (server)
+- Web Server: Nginx
+- PHP Runtime: PHP-FPM (php8.3-fpm)
+- SSL/TLS: HTTPS terminates at Nginx
+
+Environments
+- Local: aktif (APP_ENV=local)
+- Production: disupport (konfigurasi env-driven), detail deployment belum terdokumentasi di repo
+
+CI/CD
+- GitHub: repository hosting
+- Workflows: belum ada GitHub Actions workflow yang terdeteksi di repo (deployment cenderung manual / di luar repo)
+
+Monitoring & Security
+- Logging:
+  - Backend: Laravel logging (LOG_CHANNEL=stack, LOG_STACK=single)
+  - Mail: default log driver (MAIL_MAILER=log)
+- Error Tracking: belum ada integrasi (mis. Sentry) yang terdeteksi
+- Monitoring: belum ada tool monitoring yang terdeteksi
+- Backup: belum terdokumentasi di repo
+- Access Control:
+  - Backend: Sanctum + middleware role/permission (Spatie)
+  - Frontend: route guard berbasis token + role
+
+Third-Party Integrations
+- Payment: DOKU
+- Push Notifications: Firebase FCM + Expo Push
+- Realtime: Laravel Reverb (Pusher protocol) + Pusher-compatible clients
+- Email: belum ada provider aktif (mailer masih log)
+- SMS / WhatsApp: flow WhatsApp via deep-link (prefilled message), bukan provider SMS gateway
+- Analytics: belum ada yang terdeteksi
+- File Storage (External): belum ada (pakai local disk)
+
+Notes / Gaps (Belum Terjawab Sepenuhnya)
+- Hosting/Cloud provider produksi (VPS/Cloud tertentu) belum terdokumentasi di repo
+- Strategi backup (DB + uploads) belum terdokumentasi
+- Monitoring, alerting, error tracking belum terdokumentasi/terpasang

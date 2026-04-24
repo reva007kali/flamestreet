@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['order_number', 'member_id', 'trainer_id', 'courier_id', 'gym_id', 'status', 'payment_status', 'payment_method', 'payment_proof', 'subtotal', 'discount_amount', 'delivery_fee', 'total_amount', 'points_used', 'points_used_source', 'points_earned_trainer', 'points_earned_member', 'delivery_address', 'delivery_lat', 'delivery_lng', 'delivery_distance_m', 'delivery_branch_id', 'delivery_notes', 'recipient_name', 'recipient_phone', 'estimated_delivery_at', 'delivered_at', 'cancelled_at', 'cancelled_reason'])]
+#[Fillable(['order_number', 'member_id', 'trainer_id', 'courier_id', 'gym_id', 'status', 'payment_status', 'payment_method', 'payment_proof', 'subtotal', 'discount_amount', 'fp_shop_purchase_id', 'delivery_fee', 'total_amount', 'points_used', 'points_used_source', 'points_earned_trainer', 'points_earned_member', 'delivery_address', 'delivery_lat', 'delivery_lng', 'delivery_distance_m', 'delivery_branch_id', 'delivery_notes', 'recipient_name', 'recipient_phone', 'estimated_delivery_at', 'delivered_at', 'cancelled_at', 'cancelled_reason'])]
 class Order extends Model
 {
     use HasFactory;
@@ -59,5 +59,10 @@ class Order extends Model
     public function paymentTransactions()
     {
         return $this->hasMany(PaymentTransaction::class);
+    }
+
+    public function fpShopPurchase()
+    {
+        return $this->belongsTo(FpShopPurchase::class, 'fp_shop_purchase_id');
     }
 }

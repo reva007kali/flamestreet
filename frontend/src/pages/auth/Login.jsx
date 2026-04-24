@@ -6,6 +6,27 @@ import { useAuthStore } from "@/store/authStore";
 import { homeForRoles } from "@/lib/roleHome";
 import AuthShell from "@/components/auth/AuthShell";
 
+function onboardingKey(userId) {
+  return `flamestreet_onboarding_seen_${userId}`;
+}
+
+function normalizeLogin(v) {
+  const s = String(v ?? "").trim();
+  if (s.includes("@")) return s.toLowerCase();
+  return s;
+}
+
+function safeErrorMessage(e, fallback) {
+  const raw =
+    e?.response?.data?.message ??
+    e?.message ??
+    (typeof e === "string" ? e : null) ??
+    fallback;
+  const msg = String(raw ?? fallback).trim();
+  if (!msg) return fallback;
+  return msg.length > 240 ? msg.slice(0, 239) + "…" : msg;
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,20 +48,45 @@ export default function Login() {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const res = await api.post("/auth/login", { login, password });
+      const l = normalizeLogin(login);
+      const p = String(password ?? "");
+      if (!l) throw new Error("Email atau username wajib diisi.");
+      if (!p) throw new Error("Password wajib diisi.");
+      const res = await api.post("/auth/login", { login: l, password: p });
       return res.data;
     },
     onSuccess: (data) => {
       setSession(data.token, data.user);
-      navigate(fromPath ?? homeForRoles(data.user.roles), { replace: true });
+      const roles = data?.user?.roles ?? [];
+      const isMember = roles.includes("member");
+      const userId = Number(data?.user?.id ?? 0);
+      if (isMember && userId) {
+        try {
+          const seen = localStorage.getItem(onboardingKey(userId));
+          if (!seen) {
+            navigate("/member/onboarding", { replace: true });
+            return;
+          }
+        } catch {}
+      }
+      navigate(fromPath ?? homeForRoles(roles), { replace: true });
     },
     onError: (e) => {
-      setError(e?.response?.data?.message ?? "Login failed");
+      setError(safeErrorMessage(e, "Login failed"));
     },
   });
 
   if (token && user) {
-    return <Navigate to={fromPath ?? homeForRoles(user.roles)} replace />;
+    const roles = user?.roles ?? [];
+    const isMember = roles.includes("member");
+    const userId = Number(user?.id ?? 0);
+    if (isMember && userId) {
+      try {
+        const seen = localStorage.getItem(onboardingKey(userId));
+        if (!seen) return <Navigate to="/member/onboarding" replace />;
+      } catch {}
+    }
+    return <Navigate to={fromPath ?? homeForRoles(roles)} replace />;
   }
 
   return (
@@ -63,6 +109,11 @@ export default function Login() {
             placeholder="you@example.com"
             value={login}
             onChange={(e) => setLogin(e.target.value)}
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            inputMode="email"
+            maxLength={100}
           />
         </div>
 
@@ -77,6 +128,8 @@ export default function Login() {
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            maxLength={128}
           />
         </div>
 

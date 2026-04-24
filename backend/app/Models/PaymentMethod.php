@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['name', 'code', 'type', 'instructions', 'is_active', 'sort_order'])]
+#[Fillable(['name', 'code', 'type', 'icon', 'instructions', 'is_active', 'sort_order'])]
 class PaymentMethod extends Model
 {
     use HasFactory;
@@ -19,4 +19,3 @@ class PaymentMethod extends Model
         ];
     }
 }
-

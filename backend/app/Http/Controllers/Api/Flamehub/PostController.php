@@ -19,7 +19,7 @@ class PostController extends Controller
                                         $post = FlamehubPost::query()
                                                             ->with([
                                                                                 'user:id,username,full_name,avatar',
-                                                                                'media:id,post_id,type,path,sort_order,width,height,duration_ms',
+                                                                                'media:id,post_id,type,path,poster_path,sort_order,width,height,duration_ms',
                                                             ])
                                                             ->withCount([
                                                                                 'likes as like_count',
@@ -40,9 +40,11 @@ class PostController extends Controller
                                                             'caption' => ['nullable', 'string', 'max:2000'],
                                                             'media' => ['required', 'array', 'min:1', 'max:10'],
                                                             'media.*' => ['required', 'file', 'max:51200'],
+                                                            'cover' => ['nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,webp'],
                                         ]);
 
                                         $files = $request->file('media', []);
+                                        $coverFile = $request->file('cover');
                                         if (!is_array($files)) {
                                                             $files = [$files];
                                         }
@@ -74,9 +76,13 @@ class PostController extends Controller
                                                             throw ValidationException::withMessages(['media' => 'Only 1 video is allowed per post.']);
                                         }
 
+                                        if ($coverFile && $videoCount !== 1) {
+                                                            throw ValidationException::withMessages(['cover' => 'Cover is only allowed for video post.']);
+                                        }
+
                                         $userId = (int) $request->user()->getAuthIdentifier();
 
-                                        $post = DB::transaction(function () use ($data, $files, $types, $userId) {
+                                        $post = DB::transaction(function () use ($data, $files, $types, $userId, $coverFile, $videoCount) {
                                                             $post = FlamehubPost::create([
                                                                                 'user_id' => $userId,
                                                                                 'caption' => $data['caption'] ?? null,
@@ -92,10 +98,20 @@ class PostController extends Controller
                                                                                 $file->move($dir, $name);
                                                                                 $path = 'uploads/flamehub/posts/' . $post->id . '/' . $name;
 
+                                                                                $posterPath = null;
+                                                                                if ($videoCount === 1 && $types[$i] === 'video' && $coverFile) {
+                                                                                                    $cExt = (string) ($coverFile->getClientOriginalExtension() ?: '');
+                                                                                                    $cExt = $cExt !== '' ? $cExt : 'jpg';
+                                                                                                    $cName = bin2hex(random_bytes(16)) . '.' . $cExt;
+                                                                                                    $coverFile->move($dir, $cName);
+                                                                                                    $posterPath = 'uploads/flamehub/posts/' . $post->id . '/' . $cName;
+                                                                                }
+
                                                                                 FlamehubPostMedia::create([
                                                                                                     'post_id' => $post->id,
                                                                                                     'type' => $types[$i],
                                                                                                     'path' => $path,
+                                                                                                    'poster_path' => $posterPath,
                                                                                                     'sort_order' => $i,
                                                                                 ]);
                                                             }
@@ -105,7 +121,7 @@ class PostController extends Controller
 
                                         $post->load([
                                                             'user:id,username,full_name,avatar',
-                                                            'media:id,post_id,type,path,sort_order,width,height,duration_ms',
+                                                            'media:id,post_id,type,path,poster_path,sort_order,width,height,duration_ms',
                                         ]);
 
                                         return response()->json(['post' => $post], 201);
@@ -124,7 +140,7 @@ class PostController extends Controller
 
                                         $post->load([
                                                             'user:id,username,full_name,avatar',
-                                                            'media:id,post_id,type,path,sort_order,width,height,duration_ms',
+                                                            'media:id,post_id,type,path,poster_path,sort_order,width,height,duration_ms',
                                         ]);
 
                                         return response()->json(['post' => $post]);

@@ -21,7 +21,7 @@ class FeedController extends Controller
                                         $q = FlamehubPost::query()
                                                             ->with([
                                                                                 'user:id,username,full_name,avatar',
-                                                                                'media:id,post_id,type,path,sort_order,width,height,duration_ms',
+                                                                                'media:id,post_id,type,path,poster_path,sort_order,width,height,duration_ms',
                                                             ])
                                                             ->whereDoesntHave('hides', fn($qq) => $qq->where('user_id', $userId))
                                                             ->withCount([

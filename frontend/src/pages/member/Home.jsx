@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   ChevronRight,
   Bell,
+  Ticket,
 } from "lucide-react";
 
 export default function Home() {
@@ -179,7 +180,7 @@ export default function Home() {
   }, [gymsQuery.data, user?.member_profile?.default_gym_id]);
 
   return (
-    <div className="pb-24 px-3 bg-black min-h-screen text-white overflow-x-hidden">
+    <div className="pb-24 px-3 bg-black min-h-screen text-white overflow-x-hidden xl:max-w-lg mx-auto">
       {/* BANNER SECTION - IMPROVED UX */}
       <section className="relative aspect-video w-full my-4">
         <div
@@ -421,6 +422,64 @@ export default function Home() {
                 </div>
               </>
             )}
+          </Link>
+
+          <Link
+            to="/member/fp-shop"
+            className="relative overflow-hidden rounded-[24px] border border-white/[0.06] px-3 py-5 transition-all active:scale-95"
+            style={{
+              background: "linear-gradient(135deg, #1c1c1f 0%, #141416 100%)",
+            }}
+          >
+            <div
+              className="pointer-events-none absolute -right-[60px] -top-[60px] h-[160px] w-[160px] rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(9,221,97,0.12) 0%, transparent 65%)",
+              }}
+            />
+            <div
+              className="pointer-events-none absolute -bottom-10 -left-5 h-[120px] w-[120px] rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(9,221,97,0.06) 0%, transparent 65%)",
+              }}
+            />
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="grid flex-shrink-0 place-items-center">
+                  <div
+                    className="h-[22px] w-[22px] rounded-full p-[2.5px]"
+                    style={{
+                      background:
+                        "conic-gradient(from 90deg, rgba(9,221,97,0.95), rgba(9,221,97,0.15), rgba(9,221,97,0.95))",
+                    }}
+                  >
+                    <div
+                      className="grid h-full w-full place-items-center rounded-full"
+                      style={{ background: "#0d0d10" }}
+                    >
+                      <Ticket className="h-5 w-5 text-[var(--accent)]" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex min-w-0 flex-col gap-[2px]">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+                    Flame Points
+                  </div>
+                  <div className="truncate text-[15px] font-black text-white">
+                    FP Shop
+                  </div>
+                  <div className="mt-[1px] text-[11px] font-semibold text-white/35">
+                    Beli kupon diskon
+                  </div>
+                </div>
+              </div>
+
+              <ChevronRight size={18} className="flex-shrink-0 text-white/20" />
+            </div>
           </Link>
         </div>
       </section>

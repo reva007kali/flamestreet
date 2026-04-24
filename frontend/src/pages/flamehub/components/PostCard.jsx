@@ -1,6 +1,12 @@
 import { Link } from "react-router-dom";
 import { toPublicUrl } from "@/lib/assets";
-import { Heart, MessageCircle, Send, MoreHorizontal, Bookmark } from "lucide-react";
+import {
+  Heart,
+  MessageCircle,
+  Send,
+  MoreHorizontal,
+  Bookmark,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 function fmtTimeAgo(v) {
@@ -8,7 +14,7 @@ function fmtTimeAgo(v) {
   const d = new Date(v);
   const now = new Date();
   const diffInSec = Math.floor((now - d) / 1000);
-  
+
   if (diffInSec < 60) return "Just now";
   if (diffInSec < 3600) return `${Math.floor(diffInSec / 60)}m`;
   if (diffInSec < 86400) return `${Math.floor(diffInSec / 3600)}h`;
@@ -28,9 +34,73 @@ function Avatar({ user, size = "h-9 w-9" }) {
   }
   const letter = (user?.username?.[0] ?? "F").toUpperCase();
   return (
-    <div className={`${size} grid place-items-center rounded-full bg-zinc-800 text-xs font-bold text-zinc-400 border border-zinc-700`}>
+    <div
+      className={`${size} grid place-items-center rounded-full bg-zinc-800 text-xs font-bold text-zinc-400 border border-zinc-700`}
+    >
       {letter}
     </div>
+  );
+}
+
+function AutoVideo({ src, poster }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const tryPlay = () => {
+      const p = el.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") el.pause();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        const e = entries[0];
+        if (!e) return;
+        if (document.visibilityState !== "visible") {
+          el.pause();
+          return;
+        }
+        if (e.intersectionRatio >= 0.6) tryPlay();
+        else el.pause();
+      },
+      { threshold: [0, 0.6, 1] },
+    );
+
+    io.observe(el);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      io.disconnect();
+      el.pause();
+    };
+  }, [src]);
+
+  return (
+    <video
+      ref={ref}
+      className="h-full w-full object-cover"
+      src={src}
+      poster={poster ?? undefined}
+      playsInline
+      muted
+      loop
+      preload="metadata"
+      onClick={() => {
+        const el = ref.current;
+        if (!el) return;
+        if (el.paused) {
+          const p = el.play();
+          if (p && typeof p.catch === "function") p.catch(() => {});
+        } else el.pause();
+      }}
+    />
   );
 }
 
@@ -40,15 +110,10 @@ function MediaCarousel({ items }) {
 
   if (media[0]?.type === "video") {
     const src = toPublicUrl(media[0]?.path);
+    const poster = toPublicUrl(media[0]?.poster_path);
     return src ? (
-      <div className="relative aspect-square w-full overflow-hidden bg-black">
-        <video
-          className="h-full w-full object-cover"
-          src={src}
-          controls
-          playsInline
-          preload="metadata"
-        />
+      <div className="relative aspect-[4/5] w-full overflow-hidden bg-black">
+        <AutoVideo src={src} poster={poster} />
       </div>
     ) : null;
   }
@@ -58,13 +123,12 @@ function MediaCarousel({ items }) {
       {media.map((m) => {
         const src = toPublicUrl(m?.path);
         return (
-          <div key={m.id} className="aspect-square w-full shrink-0 snap-start bg-zinc-900">
+          <div
+            key={m.id}
+            className="aspect-[4/5] w-full shrink-0 snap-start bg-zinc-900"
+          >
             {src && (
-              <img
-                alt=""
-                src={src}
-                className="h-full w-full object-cover"
-              />
+              <img alt="" src={src} className="h-full w-full object-cover" />
             )}
           </div>
         );
@@ -124,7 +188,8 @@ export default function PostCard({
               {user?.username}
             </Link>
             <span className="text-[11px] text-zinc-500 mt-1">
-              {user?.full_name && `${user.full_name} • `}{fmtTimeAgo(post.created_at)}
+              {user?.full_name && `${user.full_name} • `}
+              {fmtTimeAgo(post.created_at)}
             </span>
           </div>
         </div>
@@ -189,17 +254,25 @@ export default function PostCard({
             <button
               onClick={() => onToggleLike?.(post)}
               disabled={liking}
-              className={`transition-transform active:scale-125 ${liking ? 'opacity-50' : ''}`}
+              className={`transition-transform active:scale-125 ${liking ? "opacity-50" : ""}`}
             >
               <Heart
                 size={24}
-                className={post.liked_by_me ? "fill-red-500 text-red-500" : "text-white"}
+                className={
+                  post.liked_by_me ? "fill-red-500 text-red-500" : "text-white"
+                }
               />
             </button>
-            <button onClick={() => onOpenComments?.(post)} className="active:opacity-60 transition-opacity">
+            <button
+              onClick={() => onOpenComments?.(post)}
+              className="active:opacity-60 transition-opacity"
+            >
               <MessageCircle size={24} className="text-white" />
             </button>
-            <button onClick={() => onShare?.(postUrl)} className="active:opacity-60 transition-opacity">
+            <button
+              onClick={() => onShare?.(postUrl)}
+              className="active:opacity-60 transition-opacity"
+            >
               <Send size={24} className="text-white" />
             </button>
           </div>
@@ -211,7 +284,11 @@ export default function PostCard({
           >
             <Bookmark
               size={24}
-              className={post.saved_by_me ? "fill-emerald-400 text-emerald-400" : "text-white"}
+              className={
+                post.saved_by_me
+                  ? "fill-emerald-400 text-emerald-400"
+                  : "text-white"
+              }
             />
           </button>
         </div>
@@ -239,12 +316,11 @@ export default function PostCard({
           onClick={() => onOpenComments?.(post)}
           className="mt-2 block text-[13px] text-zinc-500 hover:text-zinc-400 transition-colors"
         >
-          {post.comment_count > 0 
-            ? `View all ${post.comment_count} comments` 
-            : "Add a comment..."
-          }
+          {post.comment_count > 0
+            ? `View all ${post.comment_count} comments`
+            : "Add a comment..."}
         </button>
-        
+
         <div className="h-4" />
       </div>
     </div>

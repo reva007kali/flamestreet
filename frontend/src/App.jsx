@@ -9,9 +9,11 @@ import { homeForRoles } from "@/lib/roleHome";
 import { useAuthStore } from "@/store/authStore";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
+import RegisterTrainer from "@/pages/auth/RegisterTrainer";
 import OrderDetail from "@/pages/common/OrderDetail";
 import Articles from "@/pages/common/Articles";
 import ArticleDetail from "@/pages/common/ArticleDetail";
+import FpShop from "@/pages/common/FpShop";
 import FlamehubFeed from "@/pages/flamehub/Feed";
 import FlamehubCreatePost from "@/pages/flamehub/CreatePost";
 import FlamehubPostDetail from "@/pages/flamehub/PostDetail";
@@ -27,8 +29,12 @@ import MemberChats from "@/pages/member/Chats";
 import MemberChatThread from "@/pages/member/ChatThread";
 import MemberNutrition from "@/pages/member/Nutrition";
 import MemberProfile from "@/pages/member/Profile";
+import MemberInvitations from "@/pages/member/Invitations";
+import MemberOnboarding from "@/pages/member/Onboarding";
+import MemberOnboardingGate from "@/components/member/MemberOnboardingGate";
 import TrainerDashboard from "@/pages/trainer/Dashboard";
 import TrainerReferrals from "@/pages/trainer/Referrals";
+import TrainerInviteMember from "@/pages/trainer/InviteMember";
 import TrainerPoints from "@/pages/trainer/Points";
 import TrainerProfile from "@/pages/trainer/Profile";
 import TrainerChats from "@/pages/trainer/Chats";
@@ -62,21 +68,52 @@ import AdminPointSettings from "@/pages/admin/PointSettings";
 import AdminDeliveryBranches from "@/pages/admin/DeliveryBranches";
 import AdminDeliveryPricing from "@/pages/admin/DeliveryPricing";
 import AdminRedeems from "@/pages/admin/Redeems";
+import AdminFpShopItems from "@/pages/admin/FpShopItems";
+import AdminFpShopItemForm from "@/pages/admin/FpShopItemForm";
 import Landing from "@/pages/Landing";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
 
-function RootRedirect() {
+function GuestOnly({ children }) {
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
-  if (!token || !user) return <Landing />;
-  return <Navigate to={homeForRoles(user.roles ?? [])} replace />;
+  if (token && user)
+    return <Navigate to={homeForRoles(user.roles ?? [])} replace />;
+  return children;
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<RootRedirect />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/" element={<Landing />} />
+      <Route
+        path="/login"
+        element={
+          <GuestOnly>
+            <Login />
+          </GuestOnly>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <GuestOnly>
+            <Register />
+          </GuestOnly>
+        }
+      />
+      <Route
+        path="/register-trainer"
+        element={
+          <GuestOnly>
+            <RegisterTrainer />
+          </GuestOnly>
+        }
+      />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route
+        path="/data-privacy"
+        element={<Navigate to="/privacy-policy" replace />}
+      />
 
       <Route
         element={
@@ -87,56 +124,61 @@ export default function App() {
       </Route>
 
       <Route element={<RoleGuard allowRoles={["member"]} />}>
-        <Route element={<MemberLayout />}>
-          <Route path="/member" element={<MemberHome />} />
-          <Route path="/member/menu" element={<Menu />} />
-          <Route path="/member/product/:slug" element={<ProductDetail />} />
-          <Route path="/member/cart" element={<Cart />} />
-          <Route path="/member/checkout" element={<Checkout />} />
-          <Route path="/member/orders" element={<MemberOrders />} />
-          <Route path="/member/chats" element={<MemberChats />} />
-          <Route
-            path="/member/chats/:orderNumber"
-            element={<MemberChatThread />}
-          />
-          <Route path="/member/nutrition" element={<MemberNutrition />} />
-          <Route
-            path="/member/feed"
-            element={<Articles basePath="/member" />}
-          />
-          <Route
-            path="/member/feed/:slug"
-            element={<ArticleDetail basePath="/member" />}
-          />
-          <Route
-            path="/member/articles"
-            element={<Navigate to="/member/feed" replace />}
-          />
-          <Route
-            path="/member/articles/:slug"
-            element={<ArticleDetail basePath="/member" />}
-          />
-          <Route
-            path="/member/flamehub"
-            element={<FlamehubFeed basePath="/member" />}
-          />
-          <Route
-            path="/member/flamehub/new"
-            element={<FlamehubCreatePost basePath="/member" />}
-          />
-          <Route
-            path="/member/flamehub/p/:id"
-            element={<FlamehubPostDetail basePath="/member" />}
-          />
-          <Route
-            path="/member/flamehub/u/:username"
-            element={<FlamehubProfile basePath="/member" />}
-          />
-          <Route
-            path="/member/flamehub/search"
-            element={<FlamehubSearch basePath="/member" />}
-          />
-          <Route path="/member/profile" element={<MemberProfile />} />
+        <Route path="/member/onboarding" element={<MemberOnboarding />} />
+        <Route element={<MemberOnboardingGate />}>
+          <Route element={<MemberLayout />}>
+            <Route path="/member" element={<MemberHome />} />
+            <Route path="/member/menu" element={<Menu />} />
+            <Route path="/member/product/:slug" element={<ProductDetail />} />
+            <Route path="/member/cart" element={<Cart />} />
+            <Route path="/member/checkout" element={<Checkout />} />
+            <Route path="/member/orders" element={<MemberOrders />} />
+            <Route path="/member/chats" element={<MemberChats />} />
+            <Route
+              path="/member/chats/:orderNumber"
+              element={<MemberChatThread />}
+            />
+            <Route path="/member/invitations" element={<MemberInvitations />} />
+            <Route path="/member/fp-shop" element={<FpShop basePath="/member" />} />
+            <Route path="/member/nutrition" element={<MemberNutrition />} />
+            <Route
+              path="/member/feed"
+              element={<Articles basePath="/member" />}
+            />
+            <Route
+              path="/member/feed/:slug"
+              element={<ArticleDetail basePath="/member" />}
+            />
+            <Route
+              path="/member/articles"
+              element={<Navigate to="/member/feed" replace />}
+            />
+            <Route
+              path="/member/articles/:slug"
+              element={<ArticleDetail basePath="/member" />}
+            />
+            <Route
+              path="/member/flamehub"
+              element={<FlamehubFeed basePath="/member" />}
+            />
+            <Route
+              path="/member/flamehub/new"
+              element={<FlamehubCreatePost basePath="/member" />}
+            />
+            <Route
+              path="/member/flamehub/p/:id"
+              element={<FlamehubPostDetail basePath="/member" />}
+            />
+            <Route
+              path="/member/flamehub/u/:username"
+              element={<FlamehubProfile basePath="/member" />}
+            />
+            <Route
+              path="/member/flamehub/search"
+              element={<FlamehubSearch basePath="/member" />}
+            />
+            <Route path="/member/profile" element={<MemberProfile />} />
+          </Route>
         </Route>
       </Route>
 
@@ -148,6 +190,11 @@ export default function App() {
           />
           <Route path="/trainer/dashboard" element={<TrainerDashboard />} />
           <Route path="/trainer/referrals" element={<TrainerReferrals />} />
+          <Route path="/trainer/fp-shop" element={<FpShop basePath="/trainer" />} />
+          <Route
+            path="/trainer/invite-member"
+            element={<TrainerInviteMember />}
+          />
           <Route path="/trainer/points" element={<TrainerPoints />} />
           <Route
             path="/trainer/redeem"
@@ -235,6 +282,10 @@ export default function App() {
           <Route path="/cashier/queue" element={<CashierQueue />} />
           <Route path="/cashier/orders" element={<CashierOrders />} />
           <Route path="/cashier/menu" element={<Menu basePath="/cashier" />} />
+          <Route
+            path="/cashier/product/:slug"
+            element={<ProductDetail basePath="/cashier" />}
+          />
           <Route path="/cashier/cart" element={<Cart basePath="/cashier" />} />
           <Route path="/cashier/checkout" element={<CashierCheckoutPOS />} />
         </Route>
@@ -271,6 +322,15 @@ export default function App() {
           <Route
             path="/admin/promo-banners/:id"
             element={<AdminPromoBannerForm />}
+          />
+          <Route path="/admin/fp-shop/items" element={<AdminFpShopItems />} />
+          <Route
+            path="/admin/fp-shop/items/new"
+            element={<AdminFpShopItemForm />}
+          />
+          <Route
+            path="/admin/fp-shop/items/:id"
+            element={<AdminFpShopItemForm />}
           />
           <Route path="/admin/articles" element={<AdminArticles />} />
           <Route path="/admin/articles/new" element={<AdminArticleForm />} />

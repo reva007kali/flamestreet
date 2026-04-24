@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\MemberProfile;
 use App\Models\Order;
+use App\Models\FpShopPurchase;
 use App\Services\PointService;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -99,6 +100,34 @@ class MemberPointController extends Controller
                     ];
                 }
             }
+        }
+
+        $purchases = FpShopPurchase::query()
+            ->where('user_id', $request->user()->id)
+            ->with(['item'])
+            ->orderByDesc('id')
+            ->limit(300)
+            ->get();
+
+        foreach ($purchases as $p) {
+            $item = $p->item;
+            if (! $item) {
+                continue;
+            }
+            $fp = (int) ($item->fp_price ?? 0);
+            if ($fp <= 0) {
+                continue;
+            }
+            $rows[] = [
+                'id' => 'fp_shop:purchase:'.$p->id,
+                'occurred_at' => $p->created_at,
+                'amount' => -$fp,
+                'direction' => 'out',
+                'source' => 'FP Shop',
+                'reference_type' => 'fp_shop_item',
+                'reference_id' => $item->id,
+                'reference_label' => $item->name,
+            ];
         }
 
         usort($rows, function ($a, $b) {

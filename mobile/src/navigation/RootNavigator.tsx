@@ -16,6 +16,7 @@ import ProductsScreen from "../screens/ProductsScreen";
 import ProductDetailScreen from "../screens/ProductDetailScreen";
 import CartScreen from "../screens/CartScreen";
 import CheckoutScreen from "../screens/CheckoutScreen";
+import FpShopScreen from "../screens/FpShopScreen";
 import OrdersScreen from "../screens/OrdersScreen";
 import OrderDetailScreen from "../screens/OrderDetailScreen";
 import ChatListScreen from "../screens/ChatListScreen";
@@ -32,6 +33,7 @@ import FlamehubFollowersScreen from "../screens/flamehub/FlamehubFollowersScreen
 import FlamehubTabs from "./FlamehubTabs";
 import ProfileScreen from "../screens/ProfileScreen";
 import NotificationsScreen from "../screens/NotificationsScreen";
+import MemberInvitationsScreen from "../screens/MemberInvitationsScreen";
 import PointsHistoryScreen from "../screens/PointsHistoryScreen";
 import TrainerMembersScreen from "../screens/TrainerMembersScreen";
 import TrainerWithdrawScreen from "../screens/TrainerWithdrawScreen";
@@ -507,6 +509,14 @@ export default function RootNavigator() {
           }}
         />
         <RootStack.Screen
+          name="FpShop"
+          component={FpShopScreen}
+          options={{
+            title: "FP Shop",
+            ...stackScreenAnimation,
+          }}
+        />
+        <RootStack.Screen
           name="OrderDetail"
           component={OrderDetailScreen}
           options={{
@@ -553,6 +563,15 @@ export default function RootNavigator() {
           component={NotificationsScreen}
           options={{
             title: "Notifications",
+            ...stackScreenAnimation,
+            headerRight: undefined,
+          }}
+        />
+        <RootStack.Screen
+          name="MemberInvitations"
+          component={MemberInvitationsScreen}
+          options={{
+            title: "Invitations",
             ...stackScreenAnimation,
             headerRight: undefined,
           }}

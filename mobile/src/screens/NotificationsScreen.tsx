@@ -40,6 +40,10 @@ export default function NotificationsScreen() {
 
   const goFromNotification = (n: InboxItem) => {
     const d: any = n.data ?? {};
+    if (n.type === "trainer_invitation") {
+      navigation.navigate("MemberInvitations");
+      return;
+    }
     if (d.order_id && (roles.includes("cashier") || roles.includes("admin"))) {
       navigation.navigate("CashierOrderDetail", { id: Number(d.order_id) });
       return;

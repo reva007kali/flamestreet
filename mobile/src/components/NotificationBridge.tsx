@@ -76,11 +76,16 @@ export default function NotificationBridge({ children }: PropsWithChildren) {
         const mChat = urlRaw.match(/\/chats\/([^/?#]+)/i);
         const mOrder = urlRaw.match(/\/orders\/([^/?#]+)/i);
         const mDelivery = urlRaw.match(/\/courier\/delivery\/([^/?#]+)/i);
+        const mInv = urlRaw.match(/\/member\/invitations/i);
         if (mChat?.[1]) {
           navigationRef.navigate("ChatThread", {
             orderNumber: String(mChat[1]),
             orderId: orderId ?? undefined,
           });
+          return true;
+        }
+        if (mInv) {
+          navigationRef.navigate("MemberInvitations");
           return true;
         }
         if (mDelivery?.[1]) {

@@ -36,6 +36,7 @@ function Avatar({ user }) {
 function Thumb({ post, basePath }) {
   const m = post.media?.[0];
   const src = toPublicUrl(m?.path);
+  const poster = toPublicUrl(m?.poster_path);
   return (
     <Link
       to={`${basePath}/flamehub/p/${post.id}`}
@@ -44,13 +45,21 @@ function Thumb({ post, basePath }) {
       <div className="aspect-[3/4] w-full bg-black/30">
         {src ? (
           m?.type === "video" ? (
-            <video
-              className="h-full w-full object-cover opacity-90"
-              src={src}
-              muted
-              playsInline
-              preload="metadata"
-            />
+            poster ? (
+              <img
+                alt=""
+                src={poster}
+                className="h-full w-full object-cover opacity-90"
+              />
+            ) : (
+              <video
+                className="h-full w-full object-cover opacity-90"
+                src={src}
+                muted
+                playsInline
+                preload="metadata"
+              />
+            )
           ) : (
             <img alt="" src={src} className="h-full w-full object-cover" />
           )

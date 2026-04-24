@@ -33,9 +33,21 @@ class AuthController extends Controller
             'bio' => ['nullable', 'string'],
             'instagram_handle' => ['nullable', 'string', 'max:100'],
             'referral_code' => ['nullable', 'string', 'max:20'],
+            'trainer_register_key' => ['nullable', 'string', 'max:120'],
         ]);
 
         $role = $data['role'] ?? 'member';
+
+        if ($role === 'trainer') {
+            $expected = (string) (config('services.trainer_register.key') ?? '');
+            $provided = (string) ($data['trainer_register_key'] ?? '');
+            if ($expected === '' || !hash_equals($expected, $provided)) {
+                return response()->json(['message' => 'Gagal daftar, silahkan hubungi admin kami untuk meminta kode pendaftaran'], 403);
+            }
+            if (empty($data['date_of_birth'])) {
+                return response()->json(['message' => 'date_of_birth is required for trainer'], 422);
+            }
+        }
 
         $user = User::query()->create([
             'full_name' => $data['full_name'],
@@ -53,7 +65,7 @@ class AuthController extends Controller
             TrainerProfile::query()->create([
                 'user_id' => $user->id,
                 'gym_id' => $data['gym_id'] ?? null,
-                'date_of_birth' => $data['date_of_birth'] ?? now()->subYears(18)->toDateString(),
+                'date_of_birth' => $data['date_of_birth'],
                 'bio' => $data['bio'] ?? null,
                 'instagram_handle' => $data['instagram_handle'] ?? null,
                 'is_verified' => false,
@@ -94,11 +106,11 @@ class AuthController extends Controller
             ->orWhere('username', $data['login'])
             ->first();
 
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
+        if (!$user || !Hash::check($data['password'], $user->password)) {
             return response()->json(['message' => 'Invalid credentials'], 422);
         }
 
-        if (! $user->is_active) {
+        if (!$user->is_active) {
             return response()->json(['message' => 'Account disabled'], 403);
         }
 

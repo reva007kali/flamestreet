@@ -24,6 +24,21 @@ const EchoContext = createContext(null);
 
 function notifMessage(type, data) {
   const d = data ?? {};
+  if (type === "trainer_invitation") {
+    const t = d?.trainer ?? {};
+    const name = t?.full_name ? String(t.full_name) : "Trainer";
+    const u = t?.username ? `@${String(t.username)}` : "";
+    return [name, u].filter(Boolean).join(" ");
+  }
+  if (
+    type === "trainer_invitation_accepted" ||
+    type === "trainer_invitation_rejected"
+  ) {
+    const m = d?.member ?? {};
+    const name = m?.full_name ? String(m.full_name) : "Member";
+    const u = m?.username ? `@${String(m.username)}` : "";
+    return [name, u].filter(Boolean).join(" ");
+  }
   if (type === "reward_in") {
     const pts =
       d?.points != null

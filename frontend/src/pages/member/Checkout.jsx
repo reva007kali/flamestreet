@@ -15,10 +15,13 @@ import {
   FileText,
   Wallet,
   ChevronRight,
+  ChevronDown,
   CheckCircle2,
   AlertCircle,
   Loader2,
   Sparkles,
+  Ticket,
+  X,
 } from "lucide-react";
 
 const WA_PHONE = "6285182841385";
@@ -29,6 +32,16 @@ function formatGymAddress(g) {
 }
 
 function gymImageUrl(path) {
+  if (!path) return null;
+  const p = String(path).trim().replace(/^\/+/, "");
+  if (!p) return null;
+  if (/^https?:\/\//i.test(p)) return p;
+  if (p.startsWith("uploads/") || p.startsWith("storage/"))
+    return toPublicUrl(p);
+  return toPublicUrl(`storage/${p}`);
+}
+
+function methodIconUrl(path) {
   if (!path) return null;
   const p = String(path).trim().replace(/^\/+/, "");
   if (!p) return null;
@@ -49,6 +62,35 @@ function selectedChoices(item) {
     if (picked.length) rows.push(picked.join(", "));
   }
   return rows;
+}
+
+function calcCouponDiscount(item, subtotalValue) {
+  if (!item || String(item.type) !== "coupon") return 0;
+  if (!item.is_active) return 0;
+  const now = Date.now();
+  const startsAt = item.starts_at ? new Date(item.starts_at).getTime() : null;
+  const endsAt = item.ends_at ? new Date(item.ends_at).getTime() : null;
+  if (startsAt && now < startsAt) return 0;
+  if (endsAt && now > endsAt) return 0;
+
+  const subtotalNum = Number(subtotalValue) || 0;
+  const minSubtotal = item.min_subtotal != null ? Number(item.min_subtotal) : null;
+  if (minSubtotal != null && subtotalNum < minSubtotal) return 0;
+
+  const type = String(item.discount_type ?? "");
+  const value = Number(item.discount_value ?? 0) || 0;
+  if (value <= 0) return 0;
+
+  let d = 0;
+  if (type === "fixed") d = value;
+  else if (type === "percent") d = (subtotalNum * value) / 100;
+  else return 0;
+
+  const maxDiscount = item.max_discount != null ? Number(item.max_discount) : null;
+  if (maxDiscount != null && d > maxDiscount) d = maxDiscount;
+  if (d < 0) d = 0;
+  if (d > subtotalNum) d = subtotalNum;
+  return d;
 }
 
 export default function Checkout() {
@@ -85,6 +127,9 @@ export default function Checkout() {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [gymPickerOpen, setGymPickerOpen] = useState(false);
   const [gymSearch, setGymSearch] = useState("");
+  const [couponPickerOpen, setCouponPickerOpen] = useState(false);
+  const [selectedCouponPurchase, setSelectedCouponPurchase] = useState(null);
+  const [couponError, setCouponError] = useState(null);
   const customMapEnabled = false;
 
   const openGojek = () => {
@@ -155,6 +200,46 @@ export default function Checkout() {
   const gymsQuery = useQuery({
     queryKey: ["gyms"],
     queryFn: async () => (await api.get("/gyms")).data.gyms,
+  });
+
+  const myCouponsQuery = useQuery({
+    queryKey: ["fp-shop", "purchases", "coupon", "available"],
+    enabled: couponPickerOpen,
+    queryFn: async () =>
+      (
+        await api.get("/fp-shop/purchases", {
+          params: { type: "coupon", status: "available" },
+        })
+      ).data.purchases ?? [],
+    staleTime: 5_000,
+  });
+
+  const shopCouponsQuery = useQuery({
+    queryKey: ["fp-shop", "items", "coupon"],
+    enabled: couponPickerOpen,
+    queryFn: async () =>
+      (await api.get("/fp-shop/items", { params: { type: "coupon" } })).data
+        .items ?? [],
+    staleTime: 10_000,
+  });
+
+  const buyCouponMutation = useMutation({
+    mutationFn: async (itemId) => {
+      return (await api.post(`/fp-shop/items/${Number(itemId)}/buy`)).data
+        .purchase;
+    },
+    onSuccess: (purchase) => {
+      myCouponsQuery.refetch();
+      shopCouponsQuery.refetch();
+      pointsQuery.refetch();
+      if (purchase) {
+        setSelectedCouponPurchase(purchase);
+        setCouponPickerOpen(false);
+      }
+    },
+    onError: (e) => {
+      setCouponError(e?.response?.data?.message ?? "Gagal beli kupon");
+    },
   });
 
   useEffect(() => {
@@ -376,6 +461,11 @@ export default function Checkout() {
     [addressSuggestQuery.data],
   );
 
+  const appliedDiscount = useMemo(() => {
+    if (!selectedCouponPurchase?.item) return 0;
+    return calcCouponDiscount(selectedCouponPurchase.item, subtotal());
+  }, [selectedCouponPurchase?.id, selectedCouponPurchase?.item, subtotal, items]);
+
   const payload = useMemo(
     () => ({
       gym_id: gymId ? Number(gymId) : null,
@@ -387,7 +477,8 @@ export default function Checkout() {
       recipient_phone: recipientPhone,
       payment_method: paymentMethod || null,
       delivery_fee: 0,
-      discount_amount: 0,
+      discount_amount: appliedDiscount,
+      fp_shop_purchase_id: selectedCouponPurchase?.id ?? null,
       items: items.map((it) => ({
         product_id: it.product.id,
         quantity: it.quantity ?? 1,
@@ -405,6 +496,8 @@ export default function Checkout() {
       recipientPhone,
       paymentMethod,
       deliveryFee,
+      appliedDiscount,
+      selectedCouponPurchase?.id,
       items,
     ],
   );
@@ -413,7 +506,7 @@ export default function Checkout() {
     mutationFn: async () => {
       if (!gymId) {
         throw new Error(
-          "Custom address sementara nonaktif. Pilih Gym Coverage atau Order via Gojek.",
+          "Alamat kustom sementara nonaktif. Pilih Cakupan Gym atau pesan via GoFood.",
         );
       }
       return (await api.post("/orders", payload)).data.order;
@@ -458,18 +551,18 @@ export default function Checkout() {
       navigate(`/orders/${order.order_number}`);
     },
     onError: (e) => {
-      setError(e?.response?.data?.message ?? "Checkout failed");
+      setError(e?.response?.data?.message ?? "Checkout gagal");
     },
   });
 
   const waMutation = useMutation({
     mutationFn: async () => {
       if (!gymId) {
-        throw new Error("Pilih Gym Coverage dulu untuk order via WhatsApp.");
+        throw new Error("Pilih Cakupan Gym dulu untuk order via WhatsApp.");
       }
       const addr = String(deliveryAddress ?? "").trim();
       if (!addr) throw new Error("Alamat pengantaran wajib diisi.");
-      if (!items.length) throw new Error("Cart masih kosong.");
+      if (!items.length) throw new Error("Keranjang masih kosong.");
 
       const waPayload = {
         ...payload,
@@ -499,10 +592,10 @@ export default function Checkout() {
       lines.push("Halo Flamestreet, saya mau order via WhatsApp.");
       lines.push("");
       lines.push(`Nama: ${user?.full_name ?? recipientName ?? "-"}`);
-      lines.push(`Role: ${roleLabel}`);
+      lines.push(`Peran: ${roleLabel}`);
       lines.push(`Alamat Pengantaran: ${String(deliveryAddress ?? "").trim()}`);
       lines.push("");
-      lines.push("Items:");
+      lines.push("Item:");
       items.forEach((it, idx) => {
         const qty = Number(it.quantity ?? 1);
         const price = Number(it.product?.price ?? 0) * qty;
@@ -513,27 +606,35 @@ export default function Checkout() {
         if (mods.length) lines.push(`   • ${mods.join(" • ")}`);
       });
       lines.push("");
-      lines.push(`Subtotal: Rp ${Number(subtotal()).toLocaleString("id-ID")}`);
-      lines.push(`Total: Rp ${Number(subtotal()).toLocaleString("id-ID")}`);
+      lines.push(`Subtotal: Rp ${Number(subtotalValue).toLocaleString("id-ID")}`);
+      if (selectedCouponPurchase && discountValue > 0) {
+        lines.push(
+          `Diskon (${selectedCouponPurchase?.item?.name ?? "Kupon"}): -Rp ${Number(discountValue).toLocaleString("id-ID")}`,
+        );
+      }
+      lines.push(`Total: Rp ${Number(grandTotal).toLocaleString("id-ID")}`);
       lines.push("");
-      lines.push(`Order Number: #${order?.order_number ?? ""}`);
-      if (paymentUrl) lines.push(`Payment (DOKU): ${paymentUrl}`);
+      lines.push(`Nomor Pesanan: #${order?.order_number ?? ""}`);
+      if (paymentUrl) lines.push(`Link Pembayaran (DOKU): ${paymentUrl}`);
       openWhatsApp(lines.join("\n"));
       navigate(`/orders/${order.order_number}`);
     },
     onError: (e) => {
       setError(
-        e?.response?.data?.message ?? e?.message ?? "WhatsApp order failed",
+        e?.response?.data?.message ?? e?.message ?? "Order WhatsApp gagal",
       );
     },
   });
   // ini variable untuk data dan balance , cek kembali apakah sudah benar
   const pointsBalance = Number(pointsQuery.data?.balance ?? 0) || 0;
-  const pointsDue = Math.round(Number(subtotal()) || 0);
+  const subtotalValue = Number(subtotal()) || 0;
+  const discountValue = Number(appliedDiscount) || 0;
+  const deliveryValue = gymId ? 0 : Number(deliveryFee || 0);
+  const grandTotal = Math.max(0, subtotalValue + deliveryValue - discountValue);
+  const pointsDue = Math.round(grandTotal);
   const pointsOk =
     paymentMethod !== "flame-points" || pointsBalance >= pointsDue;
   const needPaidDeliveryLocation = !gymId;
-  const grandTotal = Number(subtotal()) || 0;
 
   useEffect(() => {
     if (!suggestOpen) return;
@@ -594,7 +695,7 @@ export default function Checkout() {
                 <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-zinc-950/95 px-4 py-3 backdrop-blur">
                   <div className="min-w-0">
                     <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
-                      Gym Coverage
+                      Cakupan Gym
                     </div>
                     <div className="truncate text-[14px] font-black text-white">
                       Pilih Gym
@@ -605,7 +706,7 @@ export default function Checkout() {
                     onClick={() => setGymPickerOpen(false)}
                     className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-black text-white"
                   >
-                    Close
+                    Tutup
                   </button>
                 </div>
 
@@ -623,7 +724,7 @@ export default function Checkout() {
                 <div className="h-[calc(100vh-110px)] overflow-y-auto p-4 pt-0">
                   {gymsQuery.isLoading ? (
                     <div className="px-2 py-6 text-center text-sm font-semibold text-zinc-400">
-                      Loading gyms…
+                      Memuat gym…
                     </div>
                   ) : filteredGyms.length ? (
                     <div className="space-y-2">
@@ -705,21 +806,231 @@ export default function Checkout() {
             </div>
           ) : null}
 
+          {couponPickerOpen ? (
+            <div className="fixed inset-0 z-[3000] bg-black/70 backdrop-blur-sm">
+              <div className="h-full w-full overflow-hidden bg-zinc-950">
+                <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-zinc-950/95 px-4 py-3 backdrop-blur">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
+                      Kupon Diskon
+                    </div>
+                    <div className="truncate text-[14px] font-black text-white">
+                      Pakai / Beli Kupon
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCouponPickerOpen(false)}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-black text-white"
+                  >
+                    Tutup
+                  </button>
+                </div>
+
+                <div className="h-[calc(100vh-56px)] overflow-y-auto p-4 space-y-5">
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
+                        My Kupon
+                      </div>
+                      {selectedCouponPurchase ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCouponPurchase(null)}
+                          className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 hover:text-white/90"
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
+
+                    {myCouponsQuery.isLoading ? (
+                      <div className="mt-3 text-[12px] font-semibold text-white/50">
+                        Memuat kupon…
+                      </div>
+                    ) : (myCouponsQuery.data ?? []).length ? (
+                      <div className="mt-3 space-y-2">
+                        {(myCouponsQuery.data ?? []).map((p) => {
+                          const it = p?.item ?? {};
+                          const active =
+                            String(selectedCouponPurchase?.id ?? "") ===
+                            String(p?.id ?? "");
+                          const d = calcCouponDiscount(it, subtotalValue);
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              className={`w-full rounded-2xl border p-4 text-left transition-all ${active ? "border-[var(--accent)] bg-[var(--accent)]/5" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
+                              onClick={() => {
+                                setCouponError(null);
+                                setSelectedCouponPurchase(p);
+                                setCouponPickerOpen(false);
+                              }}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="truncate text-[13px] font-black text-white">
+                                    {it.name ?? "Kupon"}
+                                  </div>
+                                  <div className="mt-1 text-[11px] font-semibold text-white/50">
+                                    {it.discount_type === "percent"
+                                      ? `${Number(it.discount_value ?? 0)}%`
+                                      : `Rp ${Number(it.discount_value ?? 0).toLocaleString("id-ID")}`}{" "}
+                                    {it.min_subtotal != null
+                                      ? `• Min Rp ${Number(it.min_subtotal).toLocaleString("id-ID")}`
+                                      : ""}
+                                    {it.max_discount != null
+                                      ? ` • Max Rp ${Number(it.max_discount).toLocaleString("id-ID")}`
+                                      : ""}
+                                  </div>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <div className="text-[11px] font-black text-[var(--accent)] tabular-nums">
+                                    -Rp {Number(d).toLocaleString("id-ID")}
+                                  </div>
+                                  {active ? (
+                                    <div className="mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)]">
+                                      Selected
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-[12px] font-semibold text-white/45">
+                        Kamu belum punya kupon.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-[10px] font-black uppercase tracking-[0.2em] text-white/35">
+                      Kupon Yang Bisa Dibeli
+                    </div>
+
+                    {shopCouponsQuery.isLoading ? (
+                      <div className="mt-3 text-[12px] font-semibold text-white/50">
+                        Memuat FP Shop…
+                      </div>
+                    ) : (shopCouponsQuery.data ?? []).filter(
+                        (it) => it && it.type === "coupon",
+                      ).length ? (
+                      <div className="mt-3 space-y-2">
+                        {(shopCouponsQuery.data ?? [])
+                          .filter((it) => it && it.type === "coupon")
+                          .map((it) => {
+                            const canBuy = pointsBalance >= Number(it.fp_price ?? 0);
+                            const d = calcCouponDiscount(it, subtotalValue);
+                            return (
+                              <div
+                                key={it.id}
+                                className="w-full rounded-2xl border border-white/10 bg-white/5 p-4"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="truncate text-[13px] font-black text-white">
+                                      {it.name}
+                                    </div>
+                                    <div className="mt-1 text-[11px] font-semibold text-white/50">
+                                      {it.discount_type === "percent"
+                                        ? `${Number(it.discount_value ?? 0)}%`
+                                        : `Rp ${Number(it.discount_value ?? 0).toLocaleString("id-ID")}`}{" "}
+                                      {it.min_subtotal != null
+                                        ? `• Min Rp ${Number(it.min_subtotal).toLocaleString("id-ID")}`
+                                        : ""}
+                                      {it.max_discount != null
+                                        ? ` • Max Rp ${Number(it.max_discount).toLocaleString("id-ID")}`
+                                        : ""}
+                                    </div>
+                                    <div className="mt-2 text-[11px] font-semibold text-white/35">
+                                      Estimasi diskon checkout sekarang: -Rp{" "}
+                                      {Number(d).toLocaleString("id-ID")}
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <div className="text-[11px] font-black text-white/70 tabular-nums">
+                                      {Number(it.fp_price ?? 0).toLocaleString("id-ID")}{" "}
+                                      FP
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCouponError(null);
+                                        buyCouponMutation.mutate(it.id);
+                                      }}
+                                      disabled={
+                                        buyCouponMutation.isPending || !canBuy
+                                      }
+                                      className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--accent-foreground)] disabled:opacity-30 disabled:grayscale"
+                                    >
+                                      {buyCouponMutation.isPending ? (
+                                        <Loader2 size={14} className="animate-spin" />
+                                      ) : (
+                                        "Beli"
+                                      )}
+                                    </button>
+                                    {!canBuy ? (
+                                      <div className="mt-2 text-[10px] font-bold text-rose-300 uppercase tracking-widest">
+                                        FP kurang
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    ) : (
+                      <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-4 text-[12px] font-semibold text-white/45">
+                        Belum ada kupon tersedia.
+                      </div>
+                    )}
+
+                    {couponError ? (
+                      <div className="mt-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[11px] font-semibold text-rose-200">
+                        {couponError}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {/* Delivery Section */}
           <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6 space-y-6">
             <div className="flex items-center gap-2 pb-4 border-b border-zinc-900">
               <Truck size={18} className="text-[var(--accent)]" />
               <h2 className="text-sm font-bold text-white uppercase tracking-widest">
-                Delivery Details
+                Detail Pengantaran
               </h2>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                  Destination
+                  Tujuan
                 </label>
                 <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGymPickerOpen(true)}
+                    className={`rounded-xl border p-3 text-center transition-all ${gymId ? "border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)]" : "border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:border-[var(--accent)] hover:text-[var(--accent)]"}`}
+                  >
+                    <Truck size={16} className="mx-auto mb-1" />
+                    <span className="text-[11px] font-bold uppercase">
+                      {gymId
+                        ? (selectedGym?.gym_name ?? "Cakupan Gym")
+                        : "Cakupan Gym"}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className="mx-auto mt-1 opacity-70"
+                    />
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -730,28 +1041,16 @@ export default function Checkout() {
                   >
                     <MapPin size={16} className="mx-auto mb-1" />
                     <span className="text-[11px] font-bold uppercase">
-                      Order via Gojek
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGymPickerOpen(true)}
-                    className={`rounded-xl border p-3 text-center transition-all ${gymId ? "border-[var(--accent)] bg-[var(--accent)]/5 text-[var(--accent)]" : "border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:border-[var(--accent)] hover:text-[var(--accent)]"}`}
-                  >
-                    <Truck size={16} className="mx-auto mb-1" />
-                    <span className="text-[11px] font-bold uppercase">
-                      {gymId
-                        ? (selectedGym?.gym_name ?? "Gym Coverage")
-                        : "Gym Coverage"}
+                      Pesan via GoFood
                     </span>
                   </button>
                 </div>
 
                 {locationHistory.length ? (
-                  <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+                  <div className="hidden mt-2 flex items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
                     <div className="min-w-0">
                       <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                        Recent
+                        Terakhir
                       </div>
                       <div className="truncate text-[11px] font-semibold text-zinc-300">
                         Pilih lokasi terakhir (max 5)
@@ -764,7 +1063,7 @@ export default function Checkout() {
                         onChange={(e) => applyHistoryItem(e.target.value)}
                       >
                         <option value="" className="bg-zinc-900 text-white">
-                          Select
+                          Pilih
                         </option>
                         {locationHistory.map((h) => (
                           <option
@@ -784,8 +1083,8 @@ export default function Checkout() {
 
               {selectedGym && (
                 <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-[11px] font-bold text-emerald-500 uppercase tracking-widest">
-                  <Sparkles size={14} /> Free delivery to {selectedGym.gym_name}{" "}
-                  coverage
+                  <Sparkles size={14} /> Gratis ongkir untuk area{" "}
+                  {selectedGym.gym_name}
                 </div>
               )}
 
@@ -793,11 +1092,11 @@ export default function Checkout() {
                 <div className="space-y-3">
                   <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 px-4 py-4">
                     <div className="text-[12px] font-black text-white">
-                      Custom Address (sementara nonaktif)
+                      Alamat Kustom (sementara nonaktif)
                     </div>
                     <div className="mt-1 text-[11px] font-semibold text-zinc-400">
-                      Untuk alamat di luar gym coverage, silakan order via
-                      Gojek.
+                      Untuk alamat di luar cakupan gym, silakan pesan via
+                      GoFood.
                     </div>
                     <div className="mt-3 flex gap-2">
                       <button
@@ -805,7 +1104,7 @@ export default function Checkout() {
                         onClick={openGojek}
                         className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-white"
                       >
-                        Order via Gojek
+                        Pesan via GoFood
                       </button>
                       <button
                         type="button"
@@ -825,14 +1124,14 @@ export default function Checkout() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                    Full Address
+                    Alamat Lengkap
                   </label>
                   <textarea
                     className="min-h-24 w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none focus:border-[var(--accent)] transition-all disabled:opacity-50"
                     placeholder={
                       gymId
-                        ? "Street name, building, unit number..."
-                        : "Custom address sementara nonaktif. Gunakan Gym Coverage atau Order via Gojek."
+                        ? "Nama jalan, gedung, nomor unit…"
+                        : "Alamat kustom sementara nonaktif. Gunakan Cakupan Gym atau pesan via GoFood."
                     }
                     value={deliveryAddress}
                     onChange={(e) => {
@@ -842,10 +1141,10 @@ export default function Checkout() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                      Recipient
+                      Penerima
                     </label>
                     <div className="relative">
                       <UserIcon
@@ -861,7 +1160,7 @@ export default function Checkout() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                      Phone
+                      Telepon
                     </label>
                     <div className="relative">
                       <Phone
@@ -879,7 +1178,7 @@ export default function Checkout() {
 
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-                    Delivery Notes
+                    Catatan Pengantaran
                   </label>
                   <div className="relative">
                     <FileText
@@ -888,7 +1187,7 @@ export default function Checkout() {
                     />
                     <input
                       className="w-full rounded-xl border border-zinc-800 bg-zinc-900 pl-10 pr-4 py-3 text-sm text-white outline-none focus:border-[var(--accent)]"
-                      placeholder="e.g. Rumah No 11, Gedung A LT 1, Kantor A"
+                      placeholder="Nomor rumah, gedung, lt, kantor, dll."
                       value={deliveryNotes}
                       onChange={(e) => setDeliveryNotes(e.target.value)}
                     />
@@ -903,22 +1202,28 @@ export default function Checkout() {
             <div className="flex items-center gap-2 pb-4 border-b border-zinc-900">
               <CreditCard size={18} className="text-[var(--accent)]" />
               <h2 className="text-sm font-bold text-white uppercase tracking-widest">
-                Payment Method
+                Metode Pembayaran
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-2 gap-3">
               {(methodsQuery.data ?? []).map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setPaymentMethod(m.code)}
                   className={`flex items-center justify-between rounded-2xl border p-4 transition-all ${paymentMethod === m.code ? "border-[var(--accent)] bg-[var(--accent)]/5 shadow-lg shadow-[var(--accent)]/5" : "border-zinc-800 bg-zinc-900/40 hover:bg-zinc-900"}`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-col justify-center items-center gap-3">
                     <div
                       className={`p-2 rounded-lg ${paymentMethod === m.code ? "bg-[var(--accent)] text-[var(--accent-foreground)]" : "bg-zinc-800 text-zinc-500"}`}
                     >
-                      {m.code === "flame-points" ? (
+                      {m.icon ? (
+                        <img
+                          src={methodIconUrl(m.icon)}
+                          alt=""
+                          className="h-4 w-4 object-contain"
+                        />
+                      ) : m.code === "flame-points" ? (
                         <Wallet size={16} />
                       ) : (
                         <CreditCard size={16} />
@@ -937,6 +1242,57 @@ export default function Checkout() {
               ))}
             </div>
 
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCouponError(null);
+                    setCouponPickerOpen(true);
+                  }}
+                  className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-white/70 hover:text-white transition-all"
+                >
+                  <Ticket size={16} className="text-[var(--accent)]" />
+                  Pakai Kupon
+                </button>
+
+                {selectedCouponPurchase ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCouponPurchase(null);
+                      setCouponError(null);
+                    }}
+                    className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                    aria-label="Remove coupon"
+                  >
+                    <X size={16} />
+                  </button>
+                ) : null}
+              </div>
+
+              {selectedCouponPurchase ? (
+                <div className="mt-3 flex items-center justify-between gap-3 text-[11px] font-semibold text-white/60">
+                  <div className="min-w-0 truncate">
+                    {selectedCouponPurchase?.item?.name ?? "Kupon"}
+                  </div>
+                  <div className="shrink-0 text-[var(--accent)] font-black tabular-nums">
+                    -Rp {Number(discountValue).toLocaleString("id-ID")}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 text-[11px] font-semibold text-white/35">
+                  Pilih kupon dari FP Shop untuk potongan harga.
+                </div>
+              )}
+
+              {couponError ? (
+                <div className="mt-3 text-[11px] font-semibold text-rose-300">
+                  {couponError}
+                </div>
+              ) : null}
+            </div>
+
             {paymentMethod === "flame-points" && (
               <div className="rounded-2xl bg-[var(--accent)]/5 border border-[var(--accent)]/20 p-5 space-y-3">
                 <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
@@ -946,7 +1302,7 @@ export default function Checkout() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
-                  <span className="text-zinc-500">Bill Total</span>
+                  <span className="text-zinc-500">Total Tagihan</span>
                   <span className="text-[var(--accent)] font-black">
                     {pointsDue.toLocaleString("id-ID")} Pts
                   </span>
@@ -967,7 +1323,7 @@ export default function Checkout() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--accent)] opacity-[0.02] blur-3xl rounded-full" />
 
             <h2 className="text-sm font-black text-white uppercase tracking-widest mb-6">
-              Order Summary
+              Ringkasan Pesanan
             </h2>
 
             <div className="space-y-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
@@ -1004,20 +1360,30 @@ export default function Checkout() {
                 </span>
               </div>
               <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-zinc-500">
-                <span>Delivery Fee</span>
+                <span>Ongkir</span>
                 <span
                   className={
                     gymId ? "text-emerald-500 italic" : "text-zinc-200"
                   }
                 >
                   {gymId
-                    ? "Free"
+                    ? "Gratis"
                     : `Rp ${Number(deliveryFee || 0).toLocaleString("id-ID")}`}
                 </span>
               </div>
+              {selectedCouponPurchase && discountValue > 0 ? (
+                <div className="flex justify-between text-xs font-bold uppercase tracking-widest text-zinc-500">
+                  <span className="min-w-0 truncate">
+                    Diskon ({selectedCouponPurchase?.item?.name ?? "Kupon"})
+                  </span>
+                  <span className="text-emerald-500 tabular-nums">
+                    -Rp {Number(discountValue).toLocaleString("id-ID")}
+                  </span>
+                </div>
+              ) : null}
               <div className="flex justify-between items-end pt-2">
                 <span className="text-sm font-black text-white uppercase tracking-widest">
-                  Grand Total
+                  Total Akhir
                 </span>
                 <span className="text-2xl font-black text-[var(--accent)] tabular-nums tracking-tighter">
                   Rp {Number(grandTotal).toLocaleString("id-ID")}
@@ -1053,7 +1419,7 @@ export default function Checkout() {
                 <Loader2 className="animate-spin" size={20} />
               ) : (
                 <>
-                  Place Order{" "}
+                  Buat Pesanan{" "}
                   <ChevronRight
                     size={18}
                     className="transition-transform group-hover:translate-x-1"
@@ -1062,7 +1428,7 @@ export default function Checkout() {
               )}
             </button>
 
-            <button
+            {/* <button
               type="button"
               className="mt-3 w-full flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-zinc-900/60 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white transition-all hover:bg-zinc-900 disabled:opacity-30 disabled:grayscale"
               onClick={() => {
@@ -1077,9 +1443,9 @@ export default function Checkout() {
                 needPaidDeliveryLocation
               }
             >
-              <span className="text-[#25D366]">WhatsApp</span> Order + Payment
-              Link
-            </button>
+              Order <span className="text-[#25D366]">WhatsApp</span> + Link
+              Pembayaran
+            </button> */}
           </section>
         </div>
       </div>

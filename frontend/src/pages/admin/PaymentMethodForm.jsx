@@ -20,6 +20,14 @@ export default function PaymentMethodForm() {
   const navigate = useNavigate()
   const isNew = !id || id === 'new'
 
+  const baseUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/api\/?$/, '')
+
+  function imageUrl(p) {
+    if (!p) return null
+    if (/^https?:\/\//i.test(p)) return p
+    return p.startsWith('uploads/') ? `${baseUrl}/${p}` : `${baseUrl}/storage/${p}`
+  }
+
   const methodQuery = useQuery({
     enabled: !isNew,
     queryKey: ['admin', 'payment-method', id],
@@ -35,6 +43,19 @@ export default function PaymentMethodForm() {
     is_active: true,
   })
 
+  const [iconFile, setIconFile] = useState(null)
+  const [iconPreview, setIconPreview] = useState(null)
+
+  useEffect(() => {
+    if (!iconFile) {
+      setIconPreview(null)
+      return
+    }
+    const url = URL.createObjectURL(iconFile)
+    setIconPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [iconFile])
+
   useEffect(() => {
     if (!methodQuery.data) return
     const m = methodQuery.data
@@ -46,24 +67,28 @@ export default function PaymentMethodForm() {
       sort_order: Number(m.sort_order ?? 0),
       is_active: Boolean(m.is_active),
     })
+    setIconFile(null)
   }, [methodQuery.data])
 
-  const payload = useMemo(
-    () => ({
-      name: String(form.name ?? '').trim(),
-      code: nullIfEmpty(form.code),
-      type: form.type,
-      instructions: nullIfEmpty(form.instructions),
-      sort_order: Number(form.sort_order ?? 0),
-      is_active: Boolean(form.is_active),
-    }),
-    [form],
-  )
+  const formData = useMemo(() => {
+    const fd = new FormData()
+    fd.append('name', String(form.name ?? '').trim())
+    fd.append('code', nullIfEmpty(form.code) ?? '')
+    fd.append('type', form.type)
+    fd.append('instructions', nullIfEmpty(form.instructions) ?? '')
+    fd.append('sort_order', String(Number(form.sort_order ?? 0)))
+    fd.append('is_active', form.is_active ? '1' : '0')
+    if (iconFile) fd.append('icon', iconFile)
+    return fd
+  }, [form, iconFile])
 
   const save = useMutation({
     mutationFn: async () => {
-      if (isNew) return (await api.post('/admin/payment-methods', payload)).data.method
-      return (await api.put(`/admin/payment-methods/${id}`, payload)).data.method
+      if (isNew) return (await api.post('/admin/payment-methods', formData)).data.method
+      const fd = new FormData()
+      for (const [k, v] of formData.entries()) fd.append(k, v)
+      fd.append('_method', 'PUT')
+      return (await api.post(`/admin/payment-methods/${id}`, fd)).data.method
     },
     onSuccess: () => navigate('/admin/payment-methods'),
   })
@@ -89,6 +114,32 @@ export default function PaymentMethodForm() {
           <CardTitle>Details</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-2 md:col-span-2">
+            <Label>Icon</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="h-14 w-14 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+                {iconPreview || methodQuery.data?.icon ? (
+                  <img
+                    src={iconPreview ?? imageUrl(methodQuery.data?.icon)}
+                    alt=""
+                    className="h-full w-full object-contain p-2"
+                  />
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setIconFile(e.target.files?.[0] ?? null)}
+                />
+                {iconFile ? (
+                  <Button type="button" variant="secondary" onClick={() => setIconFile(null)}>
+                    Clear
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>Name</Label>
             <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
@@ -159,4 +210,3 @@ export default function PaymentMethodForm() {
     </div>
   )
 }
-

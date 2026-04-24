@@ -28,6 +28,7 @@ class OrderController extends Controller
             'recipient_phone' => ['required', 'string', 'max:20'],
             'delivery_fee' => ['nullable', 'numeric', 'min:0'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'fp_shop_purchase_id' => ['nullable', 'integer', 'exists:fp_shop_purchases,id'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'points_used' => ['nullable', 'integer', 'min:0'],
             'items' => ['required', 'array', 'min:1'],

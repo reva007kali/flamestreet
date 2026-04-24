@@ -12,6 +12,14 @@ export default function PaymentMethods() {
     queryFn: async () => (await api.get('/admin/payment-methods')).data,
   })
 
+  const baseUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/api\/?$/, '')
+
+  function imageUrl(p) {
+    if (!p) return null
+    if (/^https?:\/\//i.test(p)) return p
+    return p.startsWith('uploads/') ? `${baseUrl}/${p}` : `${baseUrl}/storage/${p}`
+  }
+
   const del = useMutation({
     mutationFn: async (id) => {
       await api.delete(`/admin/payment-methods/${id}`)
@@ -38,6 +46,7 @@ export default function PaymentMethods() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Icon</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Type</TableHead>
@@ -48,6 +57,13 @@ export default function PaymentMethods() {
             <TableBody>
               {methods.map((m) => (
                 <TableRow key={m.id}>
+                    <TableCell>
+                      <div className="h-9 w-9 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+                        {m.icon ? (
+                          <img src={imageUrl(m.icon)} alt="" className="h-full w-full object-contain p-1" />
+                        ) : null}
+                      </div>
+                    </TableCell>
                   <TableCell className="font-medium">
                     <Link to={`/admin/payment-methods/${m.id}`} className="hover:text-[var(--accent)]">
                       {m.name}
@@ -87,4 +103,3 @@ export default function PaymentMethods() {
     </div>
   )
 }
-

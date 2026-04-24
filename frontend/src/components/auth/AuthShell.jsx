@@ -24,7 +24,7 @@ export default function AuthShell({ title, subtitle, children }) {
         </div>
 
         {/* right side */}
-        <div className="lg:col-span-4 bg-zinc-950/70 h-full flex flex-col items-center justify-center rounded-[0px_40px_40px_0px] p-10">
+        <div className="lg:col-span-4 bg-zinc-950/70 h-full flex flex-col items-center justify-center rounded-[0px_40px_40px_0px] p-3 lg:p-10">
           <div className="mx-auto  flex flex-col items-center text-center">
             <h1 className="mt-5 text-4xl font-semibold">{title}</h1>
             {subtitle ? (

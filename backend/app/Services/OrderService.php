@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductModifierOption;
 use App\Models\Gym;
 use App\Services\DeliveryPricingService;
+use App\Models\FpShopPurchase;
 use App\Models\TrainerProfile;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -22,6 +23,7 @@ class OrderService
         protected NotificationService $notificationService,
         protected PointService $pointService,
         protected DeliveryPricingService $deliveryPricing,
+        protected FpShopService $fpShop,
     ) {
     }
 
@@ -69,7 +71,23 @@ class OrderService
                 $deliveryDistanceM = (int) ($q['distance_m'] ?? 0) ?: null;
                 $deliveryBranchId = isset($q['branch']['id']) ? (int) $q['branch']['id'] : null;
             }
-            $discountAmount = (float) ($cartData['discount_amount'] ?? 0);
+
+            $purchase = null;
+            if (! empty($cartData['fp_shop_purchase_id'])) {
+                $purchase = FpShopPurchase::query()
+                    ->with(['item'])
+                    ->lockForUpdate()
+                    ->find((int) $cartData['fp_shop_purchase_id']);
+                if (! $purchase || (int) $purchase->user_id !== (int) $member->id) {
+                    throw ValidationException::withMessages(['fp_shop_purchase_id' => 'Invalid coupon']);
+                }
+                if ((string) $purchase->status !== 'available') {
+                    throw ValidationException::withMessages(['fp_shop_purchase_id' => 'Coupon is not available']);
+                }
+                if (! $purchase->item || (string) $purchase->item->type !== 'coupon') {
+                    throw ValidationException::withMessages(['fp_shop_purchase_id' => 'Invalid coupon']);
+                }
+            }
 
             $order = new Order();
             $order->order_number = $this->generateOrderNumber();
@@ -85,7 +103,8 @@ class OrderService
             $order->payment_status = 'unpaid';
             $order->payment_method = $cartData['payment_method'] ?? null;
             $order->payment_proof = null;
-            $order->discount_amount = $discountAmount;
+            $order->discount_amount = 0;
+            $order->fp_shop_purchase_id = $purchase ? (int) $purchase->id : null;
             $order->delivery_fee = $deliveryFee;
             $order->points_used = 0;
             $order->points_used_source = null;
@@ -110,7 +129,7 @@ class OrderService
 
             $subtotal = 0;
             $order->subtotal = 0;
-            $order->total_amount = max(0, 0 + $deliveryFee - $discountAmount);
+            $order->total_amount = max(0, 0 + $deliveryFee);
             $order->save();
 
             if ($gym && $memberProfile && ! $memberProfile->default_gym_id) {
@@ -178,6 +197,20 @@ class OrderService
             }
 
             $order->subtotal = $subtotal;
+            $discountAmount = 0.0;
+            if ($purchase && $purchase->item) {
+                $discountAmount = $this->fpShop->calcCouponDiscount($purchase->item, (float) $subtotal);
+                if ($discountAmount <= 0) {
+                    throw ValidationException::withMessages(['fp_shop_purchase_id' => 'Coupon is not eligible']);
+                }
+
+                $purchase->status = 'reserved';
+                $purchase->reserved_order_id = $order->id;
+                $purchase->reserved_at = now();
+                $purchase->save();
+            }
+
+            $order->discount_amount = $discountAmount;
             $order->total_amount = max(0, $subtotal + $deliveryFee - $discountAmount);
 
             if (($cartData['payment_method'] ?? null) === 'flame-points') {
@@ -242,6 +275,15 @@ class OrderService
         }
 
         DB::transaction(function () use ($order): void {
+            if ($order->fp_shop_purchase_id) {
+                $p = FpShopPurchase::query()->lockForUpdate()->find((int) $order->fp_shop_purchase_id);
+                if ($p && (int) $p->reserved_order_id === (int) $order->id) {
+                    $p->status = 'used';
+                    $p->used_at = now();
+                    $p->save();
+                }
+            }
+
             $order->payment_status = 'paid';
             $order->save();
 
@@ -307,6 +349,18 @@ class OrderService
 
             if ($status === 'cancelled' && $locked->payment_status === 'paid') {
                 $this->reverseRewardsIfNeeded($locked);
+            }
+
+            if ($status === 'cancelled' && $locked->fp_shop_purchase_id) {
+                $p = FpShopPurchase::query()->lockForUpdate()->find((int) $locked->fp_shop_purchase_id);
+                if ($p && (int) $p->reserved_order_id === (int) $locked->id) {
+                    $p->status = 'available';
+                    $p->reserved_order_id = null;
+                    $p->reserved_at = null;
+                    $p->used_at = null;
+                    $p->cancelled_at = null;
+                    $p->save();
+                }
             }
 
             $locked->status = $status;
@@ -395,6 +449,18 @@ class OrderService
             }
             if ($locked->payment_status !== 'paid') {
                 return;
+            }
+
+            if ($locked->fp_shop_purchase_id) {
+                $p = FpShopPurchase::query()->lockForUpdate()->find((int) $locked->fp_shop_purchase_id);
+                if ($p && (int) $p->reserved_order_id === (int) $locked->id) {
+                    $p->status = 'available';
+                    $p->reserved_order_id = null;
+                    $p->reserved_at = null;
+                    $p->used_at = null;
+                    $p->cancelled_at = null;
+                    $p->save();
+                }
             }
 
             $memberPoints = (int) ($locked->points_earned_member ?? 0);

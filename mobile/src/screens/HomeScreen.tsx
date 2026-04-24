@@ -590,6 +590,85 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
+          <View style={{ height: 12 }} />
+          <Pressable
+            onPress={() => nav.navigate("FpShop")}
+            style={{
+              borderRadius: 24,
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.08)",
+              backgroundColor: "#141416",
+              padding: 14,
+              overflow: "hidden",
+            }}
+          >
+            <View
+              style={{
+                position: "absolute",
+                right: -60,
+                top: -60,
+                width: 160,
+                height: 160,
+                borderRadius: 80,
+                backgroundColor: "rgba(9,221,97,0.12)",
+              }}
+            />
+            <View
+              style={{
+                position: "absolute",
+                left: -20,
+                bottom: -40,
+                width: 120,
+                height: 120,
+                borderRadius: 60,
+                backgroundColor: "rgba(9,221,97,0.06)",
+              }}
+            />
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
+            >
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.3)",
+                    fontSize: 10,
+                    fontWeight: "900",
+                    letterSpacing: 2,
+                  }}
+                >
+                  Flame Points
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    color: "#fff",
+                    fontWeight: "900",
+                    fontSize: 15,
+                    marginTop: 3,
+                  }}
+                >
+                  FP Shop
+                </Text>
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.35)",
+                    fontSize: 11,
+                    fontWeight: "700",
+                    marginTop: 3,
+                  }}
+                >
+                  Beli kupon diskon
+                </Text>
+              </View>
+              <Ionicons name="ticket" size={18} color={theme.colors.green} />
+            </View>
+          </Pressable>
+
           <View style={{ height: 22 }} />
 
           <View

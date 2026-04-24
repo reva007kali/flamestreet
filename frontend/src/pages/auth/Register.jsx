@@ -8,18 +8,54 @@ import AuthShell from "@/components/auth/AuthShell";
 import { Calendar } from "lucide-react";
 
 const REF_KEY = "flamestreet_ref";
+function onboardingKey(userId) {
+  return `flamestreet_onboarding_seen_${userId}`;
+}
+
+function normalizeSpaces(s) {
+  return String(s ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeEmail(s) {
+  return String(s ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeUsername(s) {
+  return String(s ?? "").trim();
+}
+
+function normalizePhone(s) {
+  return String(s ?? "")
+    .replace(/[^\d+]/g, "")
+    .slice(0, 20);
+}
+
+function safeErrorMessage(e, fallback) {
+  const raw =
+    e?.response?.data?.message ??
+    e?.message ??
+    (typeof e === "string" ? e : null) ??
+    fallback;
+  const msg = String(raw ?? fallback).trim();
+  if (!msg) return fallback;
+  return msg.length > 240 ? msg.slice(0, 239) + "…" : msg;
+}
 
 export default function Register() {
   const navigate = useNavigate();
   const [search] = useSearchParams();
   const setSession = useAuthStore((s) => s.setSession);
 
+  const role = "member";
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("member");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [error, setError] = useState(null);
@@ -36,16 +72,20 @@ export default function Register() {
 
   const payload = useMemo(() => {
     const base = {
-      full_name: fullName,
-      username,
-      phone_number: phoneNumber,
-      email,
-      password,
+      full_name: normalizeSpaces(fullName),
+      username: normalizeUsername(username),
+      phone_number: normalizePhone(phoneNumber),
+      email: normalizeEmail(email),
+      password: String(password ?? ""),
       role,
     };
 
-    if (dateOfBirth) base.date_of_birth = dateOfBirth;
-    if (role === "member" && referralCode) base.referral_code = referralCode;
+    const dob = String(dateOfBirth ?? "").trim();
+    if (dob) base.date_of_birth = dob;
+    const ref = String(referralCode ?? "")
+      .trim()
+      .toUpperCase();
+    if (ref) base.referral_code = ref;
     return base;
   }, [
     fullName,
@@ -60,16 +100,34 @@ export default function Register() {
 
   const mutation = useMutation({
     mutationFn: async () => {
+      if (!payload.full_name) throw new Error("Full name wajib diisi.");
+      if (!payload.username) throw new Error("Username wajib diisi.");
+      if (!payload.phone_number) throw new Error("Phone number wajib diisi.");
+      if (!payload.email) throw new Error("Email wajib diisi.");
+      if (!payload.password || payload.password.length < 8)
+        throw new Error("Password minimal 8 karakter.");
       const res = await api.post("/auth/register", payload);
       return res.data;
     },
     onSuccess: (data) => {
       if (role === "member") localStorage.removeItem(REF_KEY);
       setSession(data.token, data.user);
-      navigate(homeForRoles(data.user.roles), { replace: true });
+      const roles = data?.user?.roles ?? [];
+      const isMember = roles.includes("member");
+      const userId = Number(data?.user?.id ?? 0);
+      if (isMember && userId) {
+        try {
+          const seen = localStorage.getItem(onboardingKey(userId));
+          if (!seen) {
+            navigate("/member/onboarding", { replace: true });
+            return;
+          }
+        } catch {}
+      }
+      navigate(homeForRoles(roles), { replace: true });
     },
     onError: (e) => {
-      setError(e?.response?.data?.message ?? "Register failed");
+      setError(safeErrorMessage(e, "Register failed"));
     },
   });
 
@@ -86,29 +144,6 @@ export default function Register() {
           mutation.mutate();
         }}
       >
-        {/* Role Selector - Segmented Control Style */}
-        <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-            I am a...
-          </label>
-          <div className="flex gap-2 rounded-lg bg-zinc-950 p-1 border border-zinc-800">
-            {["member", "trainer"].map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRole(r)}
-                className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
-                  role === r
-                    ? "bg-[var(--accent)] text-[var(--accent-foreground)] shadow-lg"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                {r.charAt(0).toUpperCase() + r.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Form Sections */}
         <div className="space-y-4">
           {/* Group 1: Identity */}
@@ -122,6 +157,8 @@ export default function Register() {
                 placeholder="John Doe"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
+                autoComplete="name"
+                maxLength={100}
               />
             </div>
             <div className="space-y-1.5">
@@ -133,6 +170,10 @@ export default function Register() {
                 placeholder="johndoe"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                maxLength={50}
               />
             </div>
           </div>
@@ -149,6 +190,11 @@ export default function Register() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                inputMode="email"
+                maxLength={100}
               />
             </div>
             <div className="space-y-1.5">
@@ -160,6 +206,9 @@ export default function Register() {
                 placeholder="0812..."
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
+                autoComplete="tel"
+                inputMode="tel"
+                maxLength={30}
               />
             </div>
           </div>
@@ -176,6 +225,8 @@ export default function Register() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                maxLength={128}
               />
             </div>
 
@@ -210,19 +261,20 @@ export default function Register() {
                   </button>
                 </div>
               </div>
-              {role === "member" && (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-zinc-300">
-                    Referral (Opt)
-                  </label>
-                  <input
-                    className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-zinc-100 outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
-                    placeholder="CODE123"
-                    value={referralCode}
-                    onChange={(e) => setReferralCode(e.target.value)}
-                  />
-                </div>
-              )}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-zinc-300">
+                  Referral (Opt)
+                </label>
+                <input
+                  className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-2.5 text-zinc-100 outline-none transition-all focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+                  placeholder="CODE123"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value)}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  maxLength={20}
+                />
+              </div>
             </div>
           </div>
         </div>

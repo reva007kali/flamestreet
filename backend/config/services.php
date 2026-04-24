@@ -46,4 +46,8 @@ return [
         'encrypted' => env('PUSHER_ENCRYPTED'),
     ],
 
+    'trainer_register' => [
+        'key' => env('TRAINER_REGISTER_KEY'),
+    ],
+
 ];

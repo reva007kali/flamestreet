@@ -22,12 +22,14 @@ use App\Http\Controllers\Api\GymController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\MemberNutritionController;
 use App\Http\Controllers\Api\MemberPointController;
+use App\Http\Controllers\Api\MemberInvitationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderChatController;
 use App\Http\Controllers\Api\PaymentMethodController;
 use App\Http\Controllers\Api\PromoBannerController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\TrainerController;
+use App\Http\Controllers\Api\TrainerInvitationController;
 use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\Admin\ArticleController as AdminArticleController;
 use App\Http\Controllers\Api\Staff\OrderController as StaffOrderController;
@@ -37,6 +39,8 @@ use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\DeliveryController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\Admin\DeliveryBranchController as AdminDeliveryBranchController;
+use App\Http\Controllers\Api\FpShopController;
+use App\Http\Controllers\Api\Admin\FpShopItemController as AdminFpShopItemController;
 use App\Http\Controllers\Api\Flamehub\FeedController as FlamehubFeedController;
 use App\Http\Controllers\Api\Flamehub\PostController as FlamehubPostController;
 use App\Http\Controllers\Api\Flamehub\CommentController as FlamehubCommentController;
@@ -84,6 +88,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/articles', [ArticleController::class, 'index']);
     Route::get('/articles/{slug}', [ArticleController::class, 'show']);
 
+    Route::get('/fp-shop/items', [FpShopController::class, 'items'])->middleware('role:member|trainer');
+    Route::get('/fp-shop/purchases', [FpShopController::class, 'myPurchases'])->middleware('role:member|trainer');
+    Route::post('/fp-shop/items/{id}/buy', [FpShopController::class, 'buy'])->middleware('role:member|trainer');
+
     Route::prefix('flamehub')->group(function () {
         Route::get('/feed', [FlamehubFeedController::class, 'index']);
         Route::get('/saved', [FlamehubSavedController::class, 'index']);
@@ -124,10 +132,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('trainer')->middleware('role:trainer')->group(function () {
         Route::get('/dashboard', [TrainerController::class, 'dashboard']);
         Route::get('/referrals', [TrainerController::class, 'referrals']);
+        Route::get('/invitations', [TrainerInvitationController::class, 'index']);
+        Route::post('/invitations', [TrainerInvitationController::class, 'store']);
         Route::get('/points', [TrainerController::class, 'points']);
         Route::post('/points/redeem', [TrainerController::class, 'redeem']);
         Route::get('/redeems', [TrainerController::class, 'redeemRequests']);
         Route::put('/payout-account', [TrainerController::class, 'updatePayoutAccount']);
+    });
+
+    Route::prefix('member')->middleware('role:member')->group(function () {
+        Route::get('/invitations', [MemberInvitationController::class, 'index']);
+        Route::post('/invitations/{id}/accept', [MemberInvitationController::class, 'accept']);
+        Route::post('/invitations/{id}/reject', [MemberInvitationController::class, 'reject']);
     });
 
     Route::prefix('courier')->middleware('role:courier')->group(function () {
@@ -208,6 +224,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/gyms/{id}/image', [AdminGymController::class, 'deleteImage']);
         Route::get('/point-settings', [AdminPointSettingController::class, 'index']);
         Route::put('/point-settings', [AdminPointSettingController::class, 'update']);
+        Route::get('/fp-shop/items', [AdminFpShopItemController::class, 'index']);
+        Route::get('/fp-shop/items/{id}', [AdminFpShopItemController::class, 'show']);
+        Route::post('/fp-shop/items', [AdminFpShopItemController::class, 'store']);
+        Route::put('/fp-shop/items/{id}', [AdminFpShopItemController::class, 'update']);
+        Route::delete('/fp-shop/items/{id}', [AdminFpShopItemController::class, 'destroy']);
+        Route::post('/fp-shop/items/{id}/image', [AdminFpShopItemController::class, 'uploadImage']);
+        Route::delete('/fp-shop/items/{id}/image', [AdminFpShopItemController::class, 'deleteImage']);
         Route::get('/trainers', [AdminTrainerController::class, 'index']);
         Route::put('/trainers/{id}/verify', [AdminTrainerController::class, 'verify']);
         Route::get('/delivery-branches', [AdminDeliveryBranchController::class, 'index']);

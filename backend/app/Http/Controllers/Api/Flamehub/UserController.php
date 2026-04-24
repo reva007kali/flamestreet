@@ -64,7 +64,7 @@ class UserController extends Controller
 
                                         $posts = FlamehubPost::query()
                                                             ->where('user_id', $user->id)
-                                                            ->with(['media:id,post_id,type,path,sort_order,width,height,duration_ms'])
+                                                            ->with(['media:id,post_id,type,path,poster_path,sort_order,width,height,duration_ms'])
                                                             ->whereDoesntHave('hides', fn($qq) => $qq->where('user_id', $viewerId))
                                                             ->withCount([
                                                                                 'likes as like_count',

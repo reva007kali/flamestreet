@@ -1,11 +1,13 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import { useNotifStore } from "@/store/notifStore";
 import SidePanel from "@/components/common/SidePanel";
 import { Bell, ShoppingCart, ChevronRight } from "lucide-react";
 import { requestDeviceNotificationPermission } from "@/lib/deviceNotifications";
+import { api } from "@/lib/axios";
 
 export default function ResponsiveSidebarLayout({
   brand,
@@ -15,12 +17,38 @@ export default function ResponsiveSidebarLayout({
 }) {
   const user = useAuthStore((s) => s.user);
   const location = useLocation();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
   const cartItems = useCartStore((s) => s.items);
   const notifications = useNotifStore((s) => s.notifications);
   const unreadCount = useNotifStore((s) => s.unreadCount)();
   const markRead = useNotifStore((s) => s.markRead);
   const markAllRead = useNotifStore((s) => s.markAllRead);
   const [notifOpen, setNotifOpen] = useState(false);
+  const roles = user?.roles ?? [];
+
+  const acceptInvite = useMutation({
+    mutationFn: async (invitationId) => {
+      await api.post(`/member/invitations/${invitationId}/accept`);
+      return true;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["me"] });
+      await qc.invalidateQueries({ queryKey: ["trainer", "dashboard"] });
+      await qc.invalidateQueries({ queryKey: ["trainer", "referrals"] });
+      await qc.invalidateQueries({ queryKey: ["member", "invitations"] });
+    },
+  });
+
+  const rejectInvite = useMutation({
+    mutationFn: async (invitationId) => {
+      await api.post(`/member/invitations/${invitationId}/reject`);
+      return true;
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["member", "invitations"] });
+    },
+  });
 
   const baseUrl = useMemo(() => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "";
@@ -260,15 +288,23 @@ export default function ResponsiveSidebarLayout({
 
           <div className="mt-4 space-y-3 overflow-y-auto pr-1">
             {notifications.map((n) => (
-              <button
+              <div
                 key={n.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 className={`group w-full rounded-2xl border p-4 text-left transition-all duration-200 ${
                   n.read
                     ? "border-zinc-800/50 bg-zinc-900/30 text-zinc-400"
                     : "border-[var(--accent)]/30 bg-[var(--accent)]/[0.03] text-zinc-100 ring-1 ring-[var(--accent)]/10"
                 }`}
-                onClick={() => markRead(n.id)}
+                onClick={() => {
+                  markRead(n.id);
+                  const url = n?.data?.url ? String(n.data.url) : "";
+                  if (url && url.startsWith("/")) {
+                    setNotifOpen(false);
+                    navigate(url);
+                  }
+                }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -280,6 +316,40 @@ export default function ResponsiveSidebarLayout({
                         {n.message}
                       </div>
                     )}
+                    {roles.includes("member") &&
+                    n.type === "trainer_invitation" &&
+                    n?.data?.invitation_id ? (
+                      <div className="mt-3 flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={
+                            acceptInvite.isPending || rejectInvite.isPending
+                          }
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            acceptInvite.mutate(Number(n.data.invitation_id));
+                          }}
+                          className="rounded-xl bg-[var(--accent)] px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[var(--accent-foreground)] disabled:opacity-40"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            acceptInvite.isPending || rejectInvite.isPending
+                          }
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            rejectInvite.mutate(Number(n.data.invitation_id));
+                          }}
+                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/80 disabled:opacity-40"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    ) : null}
                     <div className="mt-2 text-[9px] font-bold uppercase tracking-wider text-zinc-600">
                       {fmtNotifTime(n.createdAt)}
                     </div>
@@ -288,7 +358,7 @@ export default function ResponsiveSidebarLayout({
                     <div className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent)] shadow-[0_0_8px_rgba(var(--accent-rgb),0.6)]" />
                   )}
                 </div>
-              </button>
+              </div>
             ))}
 
             {!notifications.length && (

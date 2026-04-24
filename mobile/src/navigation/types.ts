@@ -13,8 +13,10 @@ export type RootStackParamList = {
   ChatThread: { orderNumber: string; orderId?: number };
   Nutrition: undefined;
   Checkout: undefined;
+  FpShop: undefined;
   Profile: undefined;
   Notifications: undefined;
+  MemberInvitations: undefined;
   FeedDetail: { slug: string };
   Flamehub: undefined;
   FlamehubCreate: undefined;

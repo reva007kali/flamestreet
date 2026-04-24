@@ -10,10 +10,13 @@ import {
   Search,
   Truck,
   User as UserIcon,
+  X,
 } from "lucide-react";
 
 function formatGymAddress(g) {
-  return [g?.gym_name, g?.address, g?.city, g?.province].filter(Boolean).join(", ");
+  return [g?.gym_name, g?.address, g?.city, g?.province]
+    .filter(Boolean)
+    .join(", ");
 }
 
 function gymImageUrl(path) {
@@ -21,7 +24,8 @@ function gymImageUrl(path) {
   const p = String(path).trim().replace(/^\/+/, "");
   if (!p) return null;
   if (/^https?:\/\//i.test(p)) return p;
-  if (p.startsWith("uploads/") || p.startsWith("storage/")) return toPublicUrl(p);
+  if (p.startsWith("uploads/") || p.startsWith("storage/"))
+    return toPublicUrl(p);
   return toPublicUrl(`storage/${p}`);
 }
 
@@ -37,6 +41,7 @@ export default function CheckoutPOS() {
   const [gymPickerOpen, setGymPickerOpen] = useState(false);
   const [gymSearch, setGymSearch] = useState("");
   const [gymId, setGymId] = useState("");
+  const [gymAutoPickEnabled, setGymAutoPickEnabled] = useState(true);
 
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
@@ -48,8 +53,11 @@ export default function CheckoutPOS() {
     queryKey: ["staff", "users", "search", memberQuery],
     enabled: memberQuery.trim().length >= 2,
     queryFn: async () =>
-      (await api.get("/staff/users/search", { params: { q: memberQuery.trim() } }))
-        .data?.users ?? [],
+      (
+        await api.get("/staff/users/search", {
+          params: { q: memberQuery.trim() },
+        })
+      ).data?.users ?? [],
     staleTime: 5_000,
   });
 
@@ -60,7 +68,9 @@ export default function CheckoutPOS() {
   });
 
   const filteredGyms = useMemo(() => {
-    const q = String(gymSearch ?? "").trim().toLowerCase();
+    const q = String(gymSearch ?? "")
+      .trim()
+      .toLowerCase();
     const list = gymsQuery.data ?? [];
     if (!q) return list;
     return list.filter((g) => {
@@ -83,19 +93,32 @@ export default function CheckoutPOS() {
     setRecipientName(selectedUser.full_name ?? "");
     setRecipientPhone(selectedUser.phone_number ?? "");
     const def = selectedUser.member_profile?.default_gym_id;
-    if (def && !gymId) setGymId(String(def));
-  }, [selectedUser?.id]);
+    if (def && !gymId && gymAutoPickEnabled) setGymId(String(def));
+  }, [selectedUser?.id, gymId, gymAutoPickEnabled]);
 
   useEffect(() => {
     if (!selectedGym) return;
     setDeliveryAddress(formatGymAddress(selectedGym));
   }, [selectedGym?.id]);
 
+  const clearGymCoverage = () => {
+    setGymAutoPickEnabled(false);
+    setGymId("");
+    setGymSearch("");
+    if (selectedGym) {
+      const auto = formatGymAddress(selectedGym);
+      if (String(deliveryAddress ?? "").trim() === String(auto ?? "").trim()) {
+        setDeliveryAddress("");
+      }
+    }
+  };
+
   const createPosOrder = useMutation({
     mutationFn: async () => {
       if (!selectedUser?.id) throw new Error("Pilih member dulu.");
       if (!gymId) throw new Error("Pilih gym coverage dulu.");
-      if (!String(deliveryAddress ?? "").trim()) throw new Error("Alamat pengantaran wajib diisi.");
+      if (!String(deliveryAddress ?? "").trim())
+        throw new Error("Alamat pengantaran wajib diisi.");
       if (!items.length) throw new Error("Cart masih kosong.");
 
       const payload = {
@@ -142,7 +165,8 @@ export default function CheckoutPOS() {
             Cashier Checkout (POS)
           </h1>
           <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mt-1">
-            {items.length} items • Rp {Number(subtotal()).toLocaleString("id-ID")}
+            {items.length} items • Rp{" "}
+            {Number(subtotal()).toLocaleString("id-ID")}
           </p>
         </div>
       </div>
@@ -161,7 +185,10 @@ export default function CheckoutPOS() {
           </div>
 
           <div className="relative">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <Search
+              size={16}
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"
+            />
             <input
               className="h-11 w-full rounded-2xl border border-zinc-800 bg-zinc-900 pl-11 pr-4 text-sm font-semibold text-white outline-none focus:border-[var(--accent)] transition-all placeholder:text-zinc-600"
               placeholder="Cari member / trainer (nama / WA / username)…"
@@ -169,6 +196,7 @@ export default function CheckoutPOS() {
               onChange={(e) => {
                 setMemberQuery(e.target.value);
                 setSelectedUser(null);
+                setGymAutoPickEnabled(true);
               }}
             />
           </div>
@@ -190,6 +218,7 @@ export default function CheckoutPOS() {
                       onClick={() => {
                         setSelectedUser(u);
                         setMemberQuery(u.full_name ?? "");
+                        setGymAutoPickEnabled(true);
                       }}
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -198,7 +227,8 @@ export default function CheckoutPOS() {
                             {u.full_name ?? "User"}
                           </div>
                           <div className="mt-0.5 text-[11px] font-semibold text-white/50">
-                            {u.phone_number ?? "-"} • {(u.roles ?? []).join(", ")}
+                            {u.phone_number ?? "-"} •{" "}
+                            {(u.roles ?? []).join(", ")}
                           </div>
                         </div>
                         <UserIcon size={14} className="text-white/35" />
@@ -220,31 +250,46 @@ export default function CheckoutPOS() {
             Delivery
           </div>
 
-          <button
-            type="button"
-            onClick={() => setGymPickerOpen(true)}
-            className={`w-full rounded-2xl border px-4 py-3 text-left transition-all ${gymId ? "border-[var(--accent)] bg-[var(--accent)]/5" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
-                  Gym Coverage
+          <div className="flex items-stretch gap-2">
+            <button
+              type="button"
+              onClick={() => setGymPickerOpen(true)}
+              className={`flex-1 rounded-2xl border px-4 py-3 text-left transition-all ${gymId ? "border-[var(--accent)] bg-[var(--accent)]/5" : "border-white/10 bg-white/5 hover:bg-white/10"}`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-black uppercase tracking-[0.2em] text-white/35">
+                    Gym Coverage
+                  </div>
+                  <div className="truncate text-[13px] font-black text-white">
+                    {selectedGym?.gym_name ?? "Pilih Gym"}
+                  </div>
                 </div>
-                <div className="truncate text-[13px] font-black text-white">
-                  {selectedGym?.gym_name ?? "Pilih Gym"}
-                </div>
+                {gymId ? (
+                  <CheckCircle2 size={16} className="text-[var(--accent)]" />
+                ) : null}
               </div>
-              {gymId ? <CheckCircle2 size={16} className="text-[var(--accent)]" /> : null}
-            </div>
-          </button>
+            </button>
+            {gymId ? (
+              <button
+                type="button"
+                onClick={clearGymCoverage}
+                className="h-[46px] w-[46px] shrink-0 rounded-2xl border border-white/10 bg-white/5 text-white/70 transition-all hover:bg-white/10 active:scale-[0.98]"
+                aria-label="Remove gym coverage"
+                title="Remove gym coverage"
+              >
+                <X size={16} className="mx-auto" />
+              </button>
+            ) : null}
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
-              Full Address
+              Alamat
             </label>
             <textarea
               className="min-h-24 w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none focus:border-[var(--accent)] transition-all"
-              placeholder="Alamat pengantaran (bisa edit manual)"
+              placeholder="Non gym coverage, alamatnya di isi di sini ya sayang"
               value={deliveryAddress}
               onChange={(e) => setDeliveryAddress(e.target.value)}
             />
@@ -427,4 +472,3 @@ export default function CheckoutPOS() {
     </div>
   );
 }
-

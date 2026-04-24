@@ -47,6 +47,7 @@ const NAV_GROUPS = [
     items: [
       { to: "/admin/articles", label: "Articles", Icon: Newspaper },
       { to: "/admin/promo-banners", label: "Promo Banner", Icon: Image },
+      { to: "/admin/fp-shop/items", label: "FP Shop", Icon: Flame },
     ],
   },
   {

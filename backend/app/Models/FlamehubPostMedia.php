@@ -15,6 +15,7 @@ class FlamehubPostMedia extends Model
                                         'post_id',
                                         'type',
                                         'path',
+                                        'poster_path',
                                         'sort_order',
                                         'width',
                                         'height',
@@ -26,4 +27,3 @@ class FlamehubPostMedia extends Model
                                         return $this->belongsTo(FlamehubPost::class, 'post_id');
                     }
 }
-
